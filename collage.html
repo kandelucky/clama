@@ -1357,7 +1357,14 @@ cv.addEventListener('pointermove', e => {
   if (dragPan) {
     const cell = S.cells[dragPan.id];
     if (!cell || !cell.imgId) return;
-    if (!dragPan.pushed) { pushUndo(); dragPan.pushed = true; }
+    if (!dragPan.pushed) {
+      // Start threshold: a click on a photo = selection only — the pan begins once
+      // the pointer really travels (hand jitter must not nudge the photo offset).
+      const t = (e.pointerType === 'touch' ? 8 : 4) * dpr();
+      if (Math.hypot(p.x - dragPan.x, p.y - dragPan.y) < t) return;
+      pushUndo(); dragPan.pushed = true;
+      // no re-base: the pan keeps counting from the press point — precise nudges
+    }
     const b = slotBoxOf(dragPan.id);
     if (!b) return;
     cell.ox = dragPan.ox + (p.x - dragPan.x) / Math.max(1, b[2]-b[0]);

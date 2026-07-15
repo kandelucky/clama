@@ -167,7 +167,7 @@
   #canvasArea { flex:1; overflow:auto; padding:28px; display:flex; align-items:flex-start; background:#242424; }
   #scaler { transform-origin:top left; position:relative; margin:0 auto; }
   #stage { position:relative; overflow:hidden; box-shadow:0 0 0 1px #000, 0 24px 70px rgba(0,0,0,.55); }
-  .el { position:absolute; user-select:none; -webkit-user-select:none; touch-action:none; }   /* touch-action:none = a finger on an element drags it, the browser never scrolls */
+  .el { position:absolute; user-select:none; -webkit-user-select:none; touch-action:none; }   /* touch-action:none = a finger on an element drags it, the browser never scrolls (coarse: overridden below — only .el.sel) */
   .el.sel { outline:var(--ol,1.5px) dashed #c0392b; outline-offset:4px; }
   .el img { width:100%; display:block; pointer-events:none; }
   .h {
@@ -464,6 +464,10 @@
      uchwyt rot + środkowe n/s znikają (mniej bałaganu, jak Canva); narożniki + e/w zostają */
   @media (pointer: coarse) {
     .el.sel > .h.rot, .el.sel > .h.n, .el.sel > .h.s { display:none; }
+    /* telefon: TYLKO zaznaczony element jest draggable (jego reguła 2026-07-15) — palec
+       na NIEznaczonym panuje płótno natywnie, tap = zaznaczenie (decyzja na UP w touchEnd) */
+    .el { touch-action: pan-x pan-y; }
+    .el.sel { touch-action: none; }
   }
 </style>
 
@@ -1163,7 +1167,7 @@ function zoom() { return +document.getElementById('zoom').value / 100; }
 let lastDown = { id:null, t:0, x:0, y:0 };
 function onDown(ev) {
   if (ev.button !== 0) return;   // right/middle click never drags (right = context menu)
-  if (drag || pinch) return;     // a second finger upgrades to pinch (window capture handler), never a new drag
+  if (drag || pinch || vpinch) return;   // a second finger upgrades to pinch (window capture handler), never a new drag
   const n = ev.currentTarget;
   if (n.getAttribute('contenteditable') === 'true') return;
   const onHandle = ev.target.classList.contains('h');
@@ -1173,6 +1177,15 @@ function onDown(ev) {
     ev.preventDefault();
     zoomToEl(n.dataset.id);
     return;                      // second press = zoom, not a new drag
+  }
+  /* telefon: NIEznaczony element nie rusza się i nie łapie dbl-zoom — tap go tylko
+     zaznacza (decyzja na UP w touchEnd), a przeciągnięcie panuje CAŁE płótno
+     (jego reguła 2026-07-15); lastDown czyszczony, żeby "tap + od razu drag"
+     nie wpadał w zoomToEl. Mysz bez zmian. */
+  if (ev.pointerType === 'touch' && n.dataset.id !== selId) {
+    tapSel = { id: n.dataset.id, pid: ev.pointerId, x: ev.clientX, y: ev.clientY };
+    lastDown = { id: null, t: 0, x: 0, y: 0 };
+    return;
   }
   lastDown = onHandle ? { id:null, t:0, x:0, y:0 }
                       : { id:n.dataset.id, t:ev.timeStamp, x:ev.clientX, y:ev.clientY };
@@ -1218,10 +1231,15 @@ function guide(dir, pos) {
 window.addEventListener('pointermove', ev => {
   if (!drag) return;
   /* lazy snapshot: only a real gesture makes an undo step — a plain click adds none,
-     so Ctrl+Z never has to chew through identical states */
+     so Ctrl+Z never has to chew through identical states.
+     Start threshold: a click = selection ONLY — the gesture begins once the pointer
+     really travels (hand jitter during a click must not move the element). */
   if (!drag.snapped) {
-    if (ev.clientX === drag.sx && ev.clientY === drag.sy) return;
+    const t = ev.pointerType === 'touch' ? 8 : 4;
+    if (Math.hypot(ev.clientX - drag.sx, ev.clientY - drag.sy) < t) return;
     snap(); drag.snapped = true;
+    /* no re-base: dx/dy keep counting from the press point, so a deliberate
+       small nudge lands exactly where the cursor went */
   }
   const k = zoom();
   const e = drag.e;
@@ -1331,14 +1349,41 @@ window.addEventListener('pointerup', () => { if (drag) { drag = null; clearGuide
 window.addEventListener('pointercancel', () => { if (drag) { drag = null; clearGuides(); } });
 
 /* ---------- MOBILE (etap 3): standardowy gest dwoma palcami — skala + obrót ----------
-   Jak w Canva/IG: pierwszy palec trzyma element (tryb move), drugi palec GDZIEKOLWIEK
-   na ekranie → rozsunięcie palców skaluje (tekst = font jak przy narożniku, obraz auto
-   trzyma proporcje), skręt obraca (przyciąganie co 45°, tolerancja jak uchwyt rot),
-   a środek elementu podąża za środkiem palców. Jeden snap() na gest. Mysz nietknięta.
-   Uchwyty rot + n/s są na dotyku SCHOWANE (CSS pointer:coarse) — obrót to gest. */
+   Jak w Canva/IG: element ZAZNACZONY + dwa palce gdziekolwiek na OBSZARZE PŁÓTNA
+   (obojętnie, czy któryś dotyka elementu) → rozsunięcie palców skaluje (tekst = font
+   jak przy narożniku, obraz auto trzyma proporcje), skręt obraca (przyciąganie co 45°,
+   tolerancja jak uchwyt rot), a środek elementu podąża za środkiem palców. Jeden snap()
+   na gest. NIC nie zaznaczone → dwa palce = zoom WIDOKU (suwak 15–200%, punkt między
+   palcami stoi w miejscu). Palce poza canvasArea (panel/topbar) nie wchodzą do gestu.
+   Mysz nietknięta. Uchwyty rot + n/s są na dotyku SCHOWANE (pointer:coarse). */
 let pinch = null;
+let vpinch = null;               // dwa palce na PUSTYM płótnie (nic nie zaznaczone) = zoom widoku
+let pendingDesel = null;         // dotyk pustego miejsca przy zaznaczeniu — decyzja na UP (tap = odznacz, 2. palec = gest)
+let tapSel = null;               // dotyk NIEznaczonego elementu — decyzja na UP (tap = zaznacz; ruch = pan płótna)
 const tpts = new Map();          // aktywne dotyki: pointerId -> {x,y}
 const canvasAreaEl = document.getElementById('canvasArea');
+/* fat finger: dotyk, który MIJA każdy element, łapie najbliższy w promieniu 18 px
+   (client px; bounding rect — obrócone cienkie linie też się liczą) */
+function nearestElAt(cx, cy, slop = 18) {
+  let best = null, bd = slop;
+  for (const e of doc.els) {
+    const n = node(e.id); if (!n) continue;
+    const r = n.getBoundingClientRect();
+    const d = Math.hypot(Math.max(r.left - cx, 0, cx - r.right),
+                         Math.max(r.top - cy, 0, cy - r.bottom));
+    if (d <= bd) { bd = d; best = n; }   // <= : późniejsze elementy (wyższe warstwy) wygrywają remisy
+  }
+  return best;
+}
+/* dwa palce na płótnie = nigdy natywny scroll/zoom przeglądarki; jeden palec tuż obok
+   małego elementu = my go ciągniemy, przeglądarka nie może panować (pointerdown
+   odpala się PRZED touchstart, więc drag już trwa, gdy tu zapada decyzja) */
+canvasAreaEl.addEventListener('touchstart', ev => {
+  if (ev.touches.length >= 2) { ev.preventDefault(); return; }
+  const t = ev.touches[0];
+  const near = !(ev.target.closest && ev.target.closest('.el')) && nearestElAt(t.clientX, t.clientY);
+  if (near && near.dataset.id === selId) ev.preventDefault();   /* scroll blokujemy tylko, gdy łapiemy ZAZNACZONY */
+}, { passive: false });
 function pinchGeo() {
   const [p1, p2] = [...tpts.values()];
   return { d: Math.hypot(p2.x - p1.x, p2.y - p1.y),
@@ -1347,22 +1392,42 @@ function pinchGeo() {
 }
 window.addEventListener('pointerdown', ev => {
   if (ev.pointerType !== 'touch') return;
+  if (!canvasAreaEl.contains(ev.target)) return;   // palce na panelu/topbarze nie są częścią gestu
   tpts.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
-  if (drag && drag.mode === 'move' && tpts.size === 2) {
-    const e = drag.e, n = node(e.id);
-    const g = pinchGeo();
-    const hEl = n ? n.offsetHeight : drag.hEl;
-    pinch = { e, d0: g.d, a0: g.a, mx0: g.mx, my0: g.my,
-              w0: e.w, h0: e.h || hEl, hEl0: hEl,
-              size0: e.size || 0, rot0: e.rot || 0,
-              cx0: e.x + e.w / 2, cy0: e.y + hEl / 2,
-              snapped: drag.snapped };
-    drag = null; clearGuides();
+  if (tpts.size === 2 && !pinch && !vpinch) {
+    pendingDesel = null; tapSel = null;  // drugi palec = gest, pojedynczy tap już nic nie zmieni
+    const e = drag ? drag.e : sel();     // zaznaczony element łapie gest, nawet gdy palce go nie dotykają
+    if (e) {
+      const n = node(e.id);
+      const g = pinchGeo();
+      const hEl = n ? n.offsetHeight : (drag ? drag.hEl : e.h || 100);
+      pinch = { e, d0: g.d, a0: g.a, mx0: g.mx, my0: g.my,
+                w0: e.w, h0: e.h || hEl, hEl0: hEl,
+                size0: e.size || 0, rot0: e.rot || 0,
+                cx0: e.x + e.w / 2, cy0: e.y + hEl / 2,
+                snapped: drag ? drag.snapped : false };
+      drag = null; clearGuides();
+    } else {
+      const g = pinchGeo();              // nic nie zaznaczone → zoom widoku
+      const k = zoom(), sr = scaler.getBoundingClientRect();
+      vpinch = { d0: g.d, z0: k, pcx: (g.mx - sr.left) / k, pcy: (g.my - sr.top) / k };
+    }
   }
 }, true);
 window.addEventListener('pointermove', ev => {
   if (ev.pointerType !== 'touch' || !tpts.has(ev.pointerId)) return;
   tpts.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+  if (vpinch && tpts.size >= 2) {        // zoom widoku: skala + pan, kotwica = punkt między palcami
+    const g = pinchGeo();
+    const z = Math.max(15, Math.min(200, Math.round(vpinch.z0 * g.d / (vpinch.d0 || 1) * 100)));
+    document.getElementById('zoom').value = z;
+    applyZoom();
+    const k2 = zoom();
+    const ar = canvasAreaEl.getBoundingClientRect(), sr = scaler.getBoundingClientRect();
+    canvasAreaEl.scrollLeft = sr.left - ar.left + canvasAreaEl.scrollLeft + vpinch.pcx * k2 - (g.mx - ar.left);
+    canvasAreaEl.scrollTop  = sr.top  - ar.top  + canvasAreaEl.scrollTop  + vpinch.pcy * k2 - (g.my - ar.top);
+    return;
+  }
   if (!pinch || tpts.size < 2) return;
   if (!pinch.snapped) { snap(); pinch.snapped = true; }
   const g = pinchGeo(), k = zoom(), e = pinch.e;
@@ -1391,7 +1456,25 @@ window.addEventListener('pointermove', ev => {
 const touchEnd = ev => {
   if (ev.pointerType !== 'touch') return;
   tpts.delete(ev.pointerId);
+  if (tapSel && ev.pointerId === tapSel.pid) {
+    const ts = tapSel; tapSel = null;
+    /* tap = zaznaczenie dopiero na UP; scroll (pointercancel), pinch albo ruch >10px = to nie był tap */
+    if (ev.type === 'pointerup' && !pinch && !vpinch && el(ts.id)
+        && Math.hypot(ev.clientX - ts.x, ev.clientY - ts.y) < 10) {
+      selId = ts.id; draw(); buildList(); buildProps();
+    }
+  }
+  if (pendingDesel && ev.pointerId === pendingDesel.id) {
+    const pd = pendingDesel; pendingDesel = null;
+    /* tap pustego miejsca odznacza dopiero na UP — drugi palec mógł zmienić dotyk
+       w gest na zaznaczonym elemencie (start pinch/vpinch czyści pendingDesel) */
+    if (ev.type === 'pointerup' && !pinch && !vpinch && selId
+        && Math.hypot(ev.clientX - pd.x, ev.clientY - pd.y) < 10) {
+      selId = null; draw(); buildList(); buildProps();
+    }
+  }
   if (pinch && tpts.size < 2) pinch = null;
+  if (vpinch && tpts.size < 2) vpinch = null;
   if (!tpts.size) canvasAreaEl.style.touchAction = '';
 };
 window.addEventListener('pointerup', touchEnd, true);
@@ -1744,12 +1827,29 @@ document.getElementById('filePick').onchange = ev => {
   r.readAsDataURL(f);
   ev.target.value = '';
 };
-/* click on empty canvas = deselect */
+/* click on empty canvas = deselect (touch: decided on UP; a near-miss grabs the nearest small element) */
 document.getElementById('canvasArea').addEventListener('pointerdown', ev => {
-  if (drag || pinch) return;   /* drugi palec gestu (pinch) NIE odznacza elementu */
-  if (['canvasArea','scaler','stage'].includes(ev.target.id) && selId) {
-    selId = null; draw(); buildList(); buildProps();
+  if (drag || pinch || vpinch) return;   /* drugi palec gestu NIE odznacza elementu */
+  if (!['canvasArea','scaler','stage'].includes(ev.target.id)) return;
+  if (ev.pointerType === 'touch') {
+    const n = nearestElAt(ev.clientX, ev.clientY);
+    if (n && n.dataset.id === selId) {   /* gruby palec: do 18 px od ZAZNACZONEGO = łapiemy go (re-dispatch = pełna ścieżka onDown) */
+      n.dispatchEvent(new PointerEvent('pointerdown', {
+        bubbles: true, cancelable: true, button: 0, buttons: 1, isPrimary: true,
+        pointerId: ev.pointerId, pointerType: 'touch',
+        clientX: ev.clientX, clientY: ev.clientY
+      }));
+      return;
+    }
+    if (n) {          /* NIEznaczony w pobliżu: tap = zaznacz (na UP), ruch = pan płótna */
+      tapSel = { id: n.dataset.id, pid: ev.pointerId, x: ev.clientX, y: ev.clientY };
+      lastDown = { id: null, t: 0, x: 0, y: 0 };
+      return;
+    }
+    if (selId) pendingDesel = { id: ev.pointerId, x: ev.clientX, y: ev.clientY };
+    return;           /* odznaczenie zapada na pointerup (touchEnd) — 2. palec może zrobić z tego gest */
   }
+  if (selId) { selId = null; draw(); buildList(); buildProps(); }
 });
 /* drag & drop an image straight onto the canvas */
 document.getElementById('canvasArea').addEventListener('dragover', e => e.preventDefault());
