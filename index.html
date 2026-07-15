@@ -1,0 +1,2460 @@
+<meta charset="utf-8">
+<title>Clama</title>
+<script src="fonts.js"></script>
+<script src="assets.js"></script>
+
+<style>
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:'DM Sans', system-ui, sans-serif; background:#242424; color:#e8e8e8; display:flex; flex-direction:column; height:100vh; overflow:hidden; font-size:13px; }
+  #main { flex:1; display:flex; min-height:0; }
+
+  /* ---------------- top bar ---------------- */
+  #topbar {
+    height:46px; flex:0 0 46px; background:#171717; border-bottom:1px solid #303030;
+    display:flex; align-items:center; gap:4px; padding:0 10px; position:relative; z-index:300;
+  }
+  #topbar .tbtn, #tplWinHead .tbtn, #helpHead .tbtn, #fntHead .tbtn {
+    display:flex; align-items:center; gap:7px; flex:0 0 auto;
+    background:none; border:1px solid transparent; border-radius:5px;
+    padding:6px 8px; cursor:pointer; color:#cfcfcf; font-size:12px; white-space:nowrap;
+  }
+  #topbar .tbtn:hover, #tplWinHead .tbtn:hover, #helpHead .tbtn:hover, #fntHead .tbtn:hover { background:#2b2b2b; border-color:#3d3d3d; }
+  #topbar .tbtn img, #tplWinHead .tbtn img, #helpHead .tbtn img, #fntHead .tbtn img { width:17px; height:17px; display:block; opacity:.85; }
+  #topbar .sep { width:1px; height:22px; background:#303030; margin:0 4px; flex:0 0 1px; }
+  #topbar .grow { flex:1; }
+  #brand {
+    font-family:'Bellefair', Georgia, serif; font-size:19px; letter-spacing:.22em;
+    color:#c9b8aa; margin:0 10px 0 2px; flex:0 0 auto; user-select:none;
+  }
+  #brand b { color:#a4553f; font-weight:400; }
+  #topbar #zoom { flex:0 0 110px; width:110px; }
+  #topbar #status { margin:0 8px 0 4px; flex:0 0 auto; max-width:260px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  #topbar #png { flex:0 0 auto; display:flex; align-items:center; gap:7px; padding:7px 12px; }
+  #topbar #png img { width:16px; height:16px; display:block; }
+
+  /* ---------------- template gallery (modal window) ---------------- */
+  #tplModal {
+    position:fixed; inset:0; background:rgba(0,0,0,.55);
+    display:none; align-items:center; justify-content:center; z-index:500;
+  }
+  #tplModal.open { display:flex; }
+  #tplWin {
+    width:min(920px, 92vw); max-height:86vh;
+    background:#1c1c1c; border:1px solid #3a3a3a; border-radius:10px;
+    box-shadow:0 30px 80px rgba(0,0,0,.6);
+    display:flex; flex-direction:column; overflow:hidden;
+  }
+  #tplWinHead { display:flex; align-items:center; gap:6px; padding:11px 14px; border-bottom:1px solid #2e2e2e; }
+  #tplWinHead .ttl { font-size:12px; letter-spacing:.16em; text-transform:uppercase; color:#8a7a6e; margin-right:12px; }
+  #tplWinHead .grow { flex:1; }
+  #tplGrid {
+    display:grid; grid-template-columns:repeat(auto-fill, minmax(190px, 1fr));
+    gap:14px; padding:14px; overflow-y:auto;
+  }
+  .tcard {
+    background:#242424; border:1px solid #333; border-radius:8px;
+    overflow:hidden; cursor:pointer; display:flex; flex-direction:column;
+  }
+  .tcard:hover { border-color:#77372a; }
+  .tcard .thumbBox {
+    height:250px; background:#101010; display:flex;
+    align-items:center; justify-content:center; overflow:hidden;
+  }
+  .tcard .meta { display:flex; align-items:center; gap:6px; padding:8px 10px; }
+  .tcard .name { flex:1; font-size:12px; color:#ddd; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .tcard .badge { flex:0 0 auto; font-size:10px; color:#8a7a6e; border:1px solid #3a3a3a; padding:1px 6px; border-radius:8px; }
+  .tcard .mini { flex:0 0 auto; background:none; border:none; cursor:pointer; opacity:.55; padding:3px; }
+  .tcard .mini:hover { opacity:1; }
+  .tcard .mini img { width:15px; height:15px; display:block; }
+
+  /* ---------------- własne fonty (mini window) ---------------- */
+  #fntModal {
+    position:fixed; inset:0; background:rgba(0,0,0,.55);
+    display:none; align-items:center; justify-content:center; z-index:530;
+  }
+  #fntModal.open { display:flex; }
+  #fntWin {
+    width:min(440px, 92vw); max-height:70vh;
+    background:#1c1c1c; border:1px solid #3a3a3a; border-radius:10px;
+    box-shadow:0 30px 80px rgba(0,0,0,.6);
+    display:flex; flex-direction:column; overflow:hidden;
+  }
+  #fntHead { display:flex; align-items:center; gap:6px; padding:11px 14px; border-bottom:1px solid #2e2e2e; }
+  #fntHead .ttl { font-size:12px; letter-spacing:.16em; text-transform:uppercase; color:#8a7a6e; }
+  #fntHead .grow { flex:1; }
+  #fntList { flex:1; overflow-y:auto; padding:12px 14px; display:flex; flex-direction:column; gap:8px; }
+  .frow {
+    display:flex; align-items:center; gap:10px;
+    background:#242424; border:1px solid #333; border-radius:8px; padding:9px 12px;
+  }
+  .frow .fname { flex:1; font-size:17px; color:#e8e8e8; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .frow .badge { flex:0 0 auto; font-size:10px; color:#8a7a6e; border:1px solid #3a3a3a; padding:1px 6px; border-radius:8px; }
+  .frow .fdel {
+    flex:0 0 auto; background:none; border:1px solid #3a3a3a; border-radius:5px;
+    color:#b9b9b9; font-size:11px; padding:3px 9px; cursor:pointer; font-family:inherit;
+  }
+  .frow .fdel:hover { border-color:#77372a; color:#fff; background:#5e2b20; }
+  #fntEmpty { color:#6f6f6f; font-size:12px; line-height:1.55; padding:4px 2px; }
+  #fntFoot { padding:9px 14px; border-top:1px solid #2e2e2e; color:#6f6f6f; font-size:11px; line-height:1.5; }
+  /* in-window name form — no browser prompt() (Lasha's ask); shared by fonts + template save */
+  #fntAsk, #tplAsk { display:none; padding:12px 14px; border-bottom:1px solid #2e2e2e; background:#171717; }
+  #fntAsk.open, #tplAsk.open { display:block; }
+  #fntAsk .farow, #tplAsk .farow { display:flex; align-items:center; gap:10px; }
+  #fntAsk label, #tplAsk label { font-size:12px; color:#b9b9b9; flex:0 0 auto; }
+  #fntAsk input, #tplAsk input {
+    flex:1; min-width:0; background:#242424; border:1px solid #3a3a3a; border-radius:5px;
+    color:#e8e8e8; font-size:13px; padding:6px 9px; font-family:inherit;
+  }
+  #fntAsk input:focus, #tplAsk input:focus { outline:none; border-color:#77372a; }
+  #fntHint, #tplHint { font-size:11px; line-height:1.4; margin-top:7px; color:#8a7a6e; min-height:15px; }
+  #fntHint.warn, #tplHint.warn { color:#c0392b; }
+  #fntAsk .fabtns, #tplAsk .fabtns { display:flex; gap:8px; margin-top:10px; justify-content:flex-end; }
+  #fntAsk .fabtns button, #tplAsk .fabtns button { flex:0 0 auto; padding:7px 18px; }
+  #fntAsk .fabtns button:disabled, #tplAsk .fabtns button:disabled { opacity:.4; pointer-events:none; }
+
+  /* ---------------- help (mini window) ---------------- */
+  #helpModal {
+    position:fixed; inset:0; background:rgba(0,0,0,.55);
+    display:none; align-items:center; justify-content:center; z-index:520;
+  }
+  #helpModal.open { display:flex; }
+  #helpWin {
+    width:min(700px, 92vw); height:min(540px, 86vh);
+    background:#1c1c1c; border:1px solid #3a3a3a; border-radius:10px;
+    box-shadow:0 30px 80px rgba(0,0,0,.6);
+    display:flex; flex-direction:column; overflow:hidden;
+  }
+  #helpHead { display:flex; align-items:center; gap:9px; padding:11px 14px; border-bottom:1px solid #2e2e2e; }
+  #helpHead img.hh { width:16px; height:16px; opacity:.8; display:block; }
+  #helpHead .ttl { font-size:12px; letter-spacing:.16em; text-transform:uppercase; color:#8a7a6e; }
+  #helpHead .grow { flex:1; }
+  #helpBody { flex:1; display:flex; min-height:0; }
+  #helpNav {
+    width:158px; flex:0 0 158px; background:#171717; border-right:1px solid #2e2e2e;
+    padding:10px 8px; display:flex; flex-direction:column; gap:2px;
+  }
+  #helpNav .hnav {
+    display:flex; align-items:center; gap:9px; flex:0 0 auto; text-align:left;
+    background:none; border:1px solid transparent; border-radius:5px;
+    padding:8px 9px; cursor:pointer; color:#b9b9b9; font-size:12px;
+  }
+  #helpNav .hnav img { width:16px; height:16px; flex:0 0 16px; opacity:.75; display:block; }
+  #helpNav .hnav:hover { background:#242424; }
+  #helpNav .hnav.on { background:#5e2b20; color:#fff; }
+  #helpContent { flex:1; overflow-y:auto; padding:18px 20px; }
+  .hlede { color:#9a9a9a; font-size:12px; line-height:1.55; margin-bottom:16px; }
+  .hnote { color:#6f6f6f; font-size:11px; line-height:1.5; margin-top:14px; }
+  .hrow { display:flex; gap:13px; margin-bottom:15px; }
+  .hrow > img { width:20px; height:20px; flex:0 0 20px; margin-top:1px; opacity:.8; }
+  .hrow b { display:block; font-size:13px; font-weight:500; color:#e8e8e8; margin-bottom:3px; }
+  .hrow .d { color:#9a9a9a; font-size:12px; line-height:1.55; }
+  kbd {
+    background:#282828; border:1px solid #3d3d3d; border-bottom-width:2px; border-radius:4px;
+    padding:2px 7px; font-family:inherit; font-size:11px; color:#ddd; white-space:nowrap;
+  }
+  .krow { display:flex; align-items:baseline; gap:12px; margin-bottom:11px; }
+  .krow .keys { flex:0 0 165px; display:flex; gap:4px; flex-wrap:wrap; }
+  .krow.wide .keys { flex-basis:225px; }   /* tag examples are longer than key chips */
+  .krow .kd { color:#9a9a9a; font-size:12px; line-height:1.5; }
+  #helpFoot { display:flex; justify-content:flex-end; padding:10px 14px; border-top:1px solid #2e2e2e; }
+  #helpFoot button.primary { flex:0 0 auto; padding:8px 24px; }
+
+  /* ---------------- canvas ---------------- */
+  html { background:#242424; }
+  /* centering via margin:auto (not justify-content) — an overflowing scaler stays fully scrollable at high zoom */
+  #canvasArea { flex:1; overflow:auto; padding:28px; display:flex; align-items:flex-start; background:#242424; }
+  #scaler { transform-origin:top left; position:relative; margin:0 auto; }
+  #stage { position:relative; overflow:hidden; box-shadow:0 0 0 1px #000, 0 24px 70px rgba(0,0,0,.55); }
+  .el { position:absolute; user-select:none; }
+  .el.sel { outline:var(--ol,1.5px) dashed #c0392b; outline-offset:4px; }
+  .el img { width:100%; display:block; pointer-events:none; }
+  .h {
+    position:absolute; width:var(--hs,11px); height:var(--hs,11px);
+    background:#fff; border:var(--hb,2px) solid #c0392b;
+    border-radius:2px; display:none; z-index:99;
+  }
+  .el.sel > .h { display:block; }
+  /* while a panel field is focused (typing, select, colour popover, Styl dropdown) or a
+     label is being scrubbed, the sel chrome hides — a clean view of what the value does */
+  body:has(:is(#panel, #cpop, #lspop) :focus) .el.sel,
+  #stage.scrubbing .el.sel { outline-color:transparent; }
+  body:has(:is(#panel, #cpop, #lspop) :focus) .el.sel > .h,
+  #stage.scrubbing .el.sel > .h { display:none; }
+  .h.n  { left:50%; top:calc(var(--hs,11px)/-2); margin-left:calc(var(--hs,11px)/-2); cursor:ns-resize; }
+  .h.s  { left:50%; bottom:calc(var(--hs,11px)/-2); margin-left:calc(var(--hs,11px)/-2); cursor:ns-resize; }
+  .h.e  { right:calc(var(--hs,11px)/-2); top:50%; margin-top:calc(var(--hs,11px)/-2); cursor:ew-resize; }
+  .h.w  { left:calc(var(--hs,11px)/-2);  top:50%; margin-top:calc(var(--hs,11px)/-2); cursor:ew-resize; }
+  .h.ne { right:calc(var(--hs,11px)/-2); top:calc(var(--hs,11px)/-2); cursor:nesw-resize; }
+  .h.nw { left:calc(var(--hs,11px)/-2);  top:calc(var(--hs,11px)/-2); cursor:nwse-resize; }
+  .h.se { right:calc(var(--hs,11px)/-2); bottom:calc(var(--hs,11px)/-2); cursor:nwse-resize; }
+  .h.sw { left:calc(var(--hs,11px)/-2);  bottom:calc(var(--hs,11px)/-2); cursor:nesw-resize; }
+  .h.rot {
+    left:50%; top:calc(var(--hs,11px)*-3.2); margin-left:calc(var(--hs,11px)/-2);
+    border-radius:50%; cursor:grab;
+  }
+  .h.rot::after {
+    content:''; position:absolute; left:50%; top:100%; width:var(--hb,1px);
+    height:calc(var(--hs,11px)*2.2); background:#c0392b; transform:translateX(-50%);
+  }
+  .guide { position:absolute; background:#c0392b; z-index:200; pointer-events:none; }
+  .guide.v { width:1px; top:0; bottom:0; }
+  .guide.h { height:1px; left:0; right:0; }
+
+  /* ---------------- left toolbar (add elements) ---------------- */
+  #toolbar {
+    width:52px; flex:0 0 auto; background:#171717; border-right:1px solid #303030;
+    display:flex; flex-direction:column; gap:6px; padding:10px 8px;
+    transition:width .18s ease; overflow:hidden;
+  }
+  #toolbar.open { width:168px; }
+  #toolbar .tool {
+    display:flex; align-items:center; gap:10px; width:100%; flex:0 0 auto;
+    background:none; border:1px solid transparent; border-radius:5px;
+    padding:7px; cursor:pointer; color:#cfcfcf; white-space:nowrap; font-size:12px;
+  }
+  #toolbar .tool:hover { background:#2b2b2b; border-color:#3d3d3d; }
+  #toolbar .tool img { width:20px; height:20px; flex:0 0 20px; opacity:.85; display:block; }
+  #toolbar .tool span { opacity:0; transition:opacity .15s; }
+  #toolbar.open .tool span { opacity:1; }
+  #toolbar .spacer { flex:1; }
+  #tbToggle img { transition:transform .18s ease; }
+  #toolbar.open #tbToggle img { transform:rotate(180deg); }
+
+  /* ---------------- panel ---------------- */
+  #panel { width:322px; flex:0 0 322px; background:#171717; border-left:1px solid #303030; overflow-y:auto; padding:14px; }
+  h2 { font-size:10px; text-transform:uppercase; letter-spacing:.18em; color:#8a7a6e; margin:16px 0 7px; font-weight:500; }
+  h2:first-child { margin-top:0; }
+  /* themed scrollbars + number spinners — match the dark UI everywhere */
+  * { scrollbar-width:thin; scrollbar-color:#3f3f3f #1c1c1c; }
+  input[type=number]::-webkit-outer-spin-button,
+  input[type=number]::-webkit-inner-spin-button { -webkit-appearance:none; margin:0; }
+  input[type=number] { -moz-appearance:textfield; appearance:textfield; }
+
+  /* Właściwości — Construct-3-style property grid: collapsible groups, name|value rows */
+  #props .grp { border:1px solid #333; border-radius:5px; margin-bottom:8px; overflow:hidden; background:#1f1f1f; }
+  #props .grp:last-child { margin-bottom:2px; }
+  #props .grpHead {
+    display:flex; align-items:center; gap:7px; padding:6px 9px; background:#282828;
+    cursor:pointer; font-size:11px; font-weight:600; color:#d6d6d6; user-select:none;
+  }
+  #props .grpHead:hover { background:#2e2e2e; }
+  #props .grpHead .ar { font-size:8px; color:#8a7a6e; transition:transform .12s ease; }
+  #props .grpHead .gic {
+    width:20px; height:20px; flex:0 0 20px; display:flex; align-items:center; justify-content:center;
+    background:#2f2f2f; border:1px solid #4d4d4d; border-radius:4px;
+  }
+  #props .grpHead .gic img { width:12px; height:12px; display:block; opacity:.9; }
+  #props .grp.closed .ar { transform:rotate(-90deg); }
+  #props .grp.closed .grpBody { display:none; }
+  #props .prow { display:flex; align-items:stretch; border-top:1px solid #2b2b2b; }
+  #props .prow:hover { background:#242424; }
+  #props .prow > label { flex:0 0 45%; padding:6px 9px; color:#9a9a9a; font-size:11px; border-right:1px solid #2b2b2b; display:flex; align-items:center; }
+  #props .prow > label.scrub { cursor:ew-resize; user-select:none; }
+  #props .prow .val { flex:1; min-width:0; display:flex; align-items:center; }
+  /* editable fields LOOK like fields (bg + border); read-only cells stay plain text */
+  #props .prow .val input, #props .prow .val select, #props .prow .val textarea {
+    flex:1; min-width:0; background:#2b2b2b; border:1px solid #3e3e3e; border-radius:4px;
+    color:#eee; margin:3px 6px; padding:4px 7px; font-size:12px;
+  }
+  #props .prow .val input:hover, #props .prow .val select:hover, #props .prow .val textarea:hover { border-color:#4e4e4e; }
+  #props .prow .val input:focus, #props .prow .val select:focus, #props .prow .val textarea:focus { border-color:#b4593f; background:#2f2f2f; outline:none; }
+  #props .prow .val input[type=color] { padding:2px; height:26px; cursor:pointer; }
+  /* C3-style checkbox: small square, left-aligned in the value column */
+  #props .prow .val input[type=checkbox] {
+    flex:0 0 auto; width:15px; height:15px; margin:6px 8px; padding:0;
+    accent-color:#b4593f; cursor:pointer;
+  }
+  /* label-less full-width row (the Tekst textarea spans the whole grid row) */
+  #props .prow.full textarea { min-height:76px; }
+  #props .prow .val textarea { min-height:56px; resize:vertical; }
+  #props .prow .val button { flex:1; margin:4px 6px; padding:5px; }
+  /* duo row: two label|value pairs on one line (X / Y) */
+  #props .prow.duo label { flex:0 0 15%; }
+  #props .prow.duo .val + label { border-left:1px solid #2b2b2b; border-right:1px solid #2b2b2b; }
+  /* Szer.+Wys. pair: chain button on the right toggles proportional resize */
+  #props .whwrap { position:relative; }
+  #props .whwrap .prow .val input { margin-right:28px; }
+  #props #whLock {
+    position:absolute; right:4px; top:50%; transform:translateY(-50%);
+    width:20px; height:42px; padding:0; display:flex; align-items:center; justify-content:center;
+    background:#2b2b2b; border:1px solid #3e3e3e; border-radius:4px; cursor:pointer;
+  }
+  #props #whLock:hover { border-color:#4e4e4e; }
+  #props #whLock.on { border-color:#b4593f; background:#332620; }
+  #props #whLock img { width:13px; height:13px; display:block; opacity:.5; }
+  #props #whLock.on img { opacity:1; }
+  input, select, textarea {
+    flex:1; min-width:0; background:#282828; border:1px solid #3d3d3d; color:#eee;
+    padding:5px 6px; border-radius:3px; font-family:inherit; font-size:12px;
+  }
+  input[type=color] { padding:2px; height:26px; cursor:pointer; }
+  textarea { min-height:54px; resize:vertical; }
+  button {
+    background:#333; color:#e8e8e8; border:1px solid #444; border-radius:3px; padding:6px 8px;
+    cursor:pointer; font-family:inherit; font-size:11px; flex:1;
+  }
+  button:hover { background:#404040; }
+  button.primary { background:#5e2b20; border-color:#5e2b20; color:#fff; font-size:12px; padding:9px; }
+  button.primary:hover { background:#77372a; }
+  button.danger:hover { background:#7a2020; border-color:#7a2020; }
+
+  .paneBox { background:#1d1d1d; border:1px solid #333; border-radius:8px; padding:10px 10px 9px; margin-bottom:18px; }
+  .paneBox h2 { margin-top:0; }
+
+  /* fixed-height, scrolls inside — Właściwości below never moves; 3px pad keeps the drag insert-line visible at the edges */
+  #list { display:flex; flex-direction:column; gap:6px; height:248px; overflow-y:auto; padding:3px 0; }
+  #list .item {
+    flex:0 0 auto; display:flex; align-items:center; gap:9px; padding:3px 8px;
+    background:#242424; border:1px solid #383838; border-radius:6px;
+    cursor:grab; color:#c2c2c2; font-size:12px;
+  }
+  #list .item:active { cursor:grabbing; }
+  #list .item:hover { background:#2b2b2b; border-color:#4a4a4a; }
+  #list .item.on { background:#5e2b20; border-color:#8a4a3a; color:#fff; }
+  #list .item.drag { opacity:.45; }
+  #list .item.ins-top { box-shadow:0 -3px 0 0 #b4593f; }
+  #list .item.ins-bottom { box-shadow:0 3px 0 0 #b4593f; }
+  #list .item .ic {
+    width:20px; height:20px; flex:0 0 20px; display:flex; align-items:center; justify-content:center;
+    background:#2f2f2f; border:1px solid #4d4d4d; border-radius:5px;
+  }
+  #list .item.on .ic { background:#77372a; border-color:#a86450; }
+  #list .item .ic img { width:14px; height:14px; display:block; opacity:.9; }
+  #list .item .t { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  #list .item .ty { flex:0 0 auto; font-size:9px; color:#8d8d8d; text-transform:uppercase; letter-spacing:.08em; }
+  #list .item.on .ty { color:#eac9bd; }
+  #list .empty { color:#6f6f6f; font-size:11px; padding:2px 1px 4px; }
+
+  /* right-click context menu on an element (list card or canvas) */
+  #ctx {
+    position:fixed; z-index:600; display:none; min-width:158px;
+    background:#232323; border:1px solid #3d3d3d; border-radius:7px; padding:4px;
+    box-shadow:0 10px 28px rgba(0,0,0,.5);
+  }
+  #ctx .ci { display:flex; align-items:center; gap:9px; padding:7px 10px; border-radius:5px; cursor:pointer; color:#ddd; font-size:12px; }
+  #ctx .ci:hover { background:#333; }
+  #ctx .ci.danger:hover { background:#7a2020; color:#fff; }
+  #ctx .ci.dis { opacity:.35; pointer-events:none; }
+  #ctx .ci img { width:14px; height:14px; flex:0 0 14px; opacity:.9; display:block; }
+  /* in-app confirm for Nowy/Reset — Lasha: no native browser popups; #ctx look, anchored under the trigger */
+  #cfm {
+    position:fixed; z-index:650; display:none; width:238px;
+    background:#232323; border:1px solid #3d3d3d; border-radius:7px; padding:12px;
+    box-shadow:0 10px 28px rgba(0,0,0,.5);
+  }
+  #cfm #cfmMsg { color:#ddd; font-size:12px; line-height:1.5; margin-bottom:11px; }
+  #cfm .cfrow { display:flex; gap:8px; }
+  #cfm #cfmOk { background:#7a2020; border-color:#96342c; color:#fff; }
+  #cfm #cfmOk:hover { background:#8f2626; }
+  .hint { color:#6f6f6f; font-size:11px; line-height:1.55; margin-top:8px; }
+  .hint b { color:#9a9a9a; }
+  #status { color:#7fae7f; font-size:11px; min-height:15px; margin-top:6px; }
+
+  /* ---------------- color popover: saved + recent swatches ---------------- */
+  .cswbtn { cursor:pointer; padding:0; height:26px; border:1px solid #3e3e3e; border-radius:4px; }
+  .cswbtn:hover { border-color:#b4593f; }
+  #props .prow .val .cswbtn { flex:1; height:26px; margin:3px 0 3px 6px; padding:0; }
+  #props .prow .val .cpick { flex:0 0 26px; width:26px; height:26px; margin:3px 6px 3px 4px; padding:0; background:none; border:1px solid transparent; border-radius:4px; display:flex; align-items:center; justify-content:center; cursor:pointer; }
+  #props .prow .val .cpick:hover { background:#2b2b2b; border-color:#b4593f; }
+  #props .prow .val .cpick img { width:14px; height:14px; display:block; opacity:.8; }
+  /* Styl linii: dropdown with pattern previews — trigger shows the current stroke,
+     #lspop lists all styles as wide samples + PL names (same look as #ctx) */
+  #props .prow .val .lssel { flex:1; min-width:0; height:26px; margin:3px 6px; padding:0 8px; background:#242424; border:1px solid #3e3e3e; border-radius:4px; cursor:pointer; display:flex; align-items:center; gap:8px; color:#e0e0e0; }
+  #props .prow .val .lssel:hover { border-color:#4e4e4e; }
+  #props .prow .val .lssel svg { flex:1; min-width:0; height:12px; display:block; }
+  #props .prow .val .lssel .arr { flex:0 0 auto; color:#9a9a9a; font-size:9px; }
+  #lspop { position:fixed; z-index:600; display:none; background:#232323; border:1px solid #3d3d3d; border-radius:7px; padding:4px; box-shadow:0 10px 28px rgba(0,0,0,.5); }
+  #lspop .lsopt { display:flex; align-items:center; gap:10px; width:218px; padding:8px 10px; border:1px solid transparent; border-radius:5px; cursor:pointer; color:#c8c8c8; background:none; text-align:left; }
+  #lspop .lsopt:hover { background:#2b2b2b; }
+  #lspop .lsopt.on { border-color:#b4593f; color:#f0e7dd; }
+  #lspop .lsopt svg { flex:0 0 106px; height:12px; display:block; }
+  #lspop .lsopt span { font-size:11px; white-space:nowrap; }
+  #cpop {
+    position:fixed; z-index:640; display:none; width:286px;
+    background:#1c1c1c; border:1px solid #3a3a3a; border-radius:8px;
+    box-shadow:0 18px 50px rgba(0,0,0,.55); padding:0; overflow:hidden;
+  }
+  #cpop.open { display:block; }
+  #cpHead { display:flex; align-items:center; gap:8px; padding:6px 6px 6px 12px; border-bottom:1px solid #2e2e2e; cursor:move; }
+  #cpHead .ttl { flex:1; font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:#8a7a6e; user-select:none; }
+  #cpBody { padding:10px; }
+  #cpop .cprow { display:flex; gap:6px; }
+  #cpop .cprow input[type=color] { flex:1; height:28px; }
+  #cpop #cpHex { flex:0 0 78px; text-align:center; }
+  #cpop .cpx { flex:0 0 28px; width:28px; height:28px; padding:0; background:none; border:1px solid transparent; border-radius:5px; display:flex; align-items:center; justify-content:center; cursor:pointer; }
+  #cpop .cpx:hover { background:#2b2b2b; border-color:#3d3d3d; }
+  #cpop .cpx img { width:14px; height:14px; display:block; opacity:.8; }
+  #cpop .cplab { display:flex; align-items:center; font-size:10px; text-transform:uppercase; letter-spacing:.16em; color:#8a7a6e; margin:9px 0 6px; }
+  #cpop .cplab button { flex:0 0 auto; margin-left:auto; width:20px; height:20px; padding:0; line-height:18px; font-size:14px; }
+  #cpop .cpsw { display:flex; gap:5px; }
+  #cpop .cpsw .sw { flex:0 0 20px; width:20px; height:20px; padding:0; border:1px solid #4a4a4a; border-radius:4px; cursor:pointer; }
+  #cpop .cpsw .sw:hover { border-color:#b4593f; }
+  #cpop .cpsw .none { color:#5c5c5c; font-size:11px; }
+
+  /* ---------------- okno Kolażu: collage.html w pełnoekranowym iframe ----------------
+     jedno okno, dwa narzędzia — pracujesz albo w edytorze, albo w kolażu;
+     iframe zostaje w DOM po przełączeniu, więc ułożony kolaż nie znika */
+  #kolazWrap { position:fixed; inset:0; z-index:800; display:none; background:#242424; }
+  #kolazWrap.open { display:block; }
+  #kolazWrap iframe { width:100%; height:100%; border:0; display:block; }
+</style>
+
+<div id="topbar">
+  <span id="brand">CLA<b>MA</b></span>
+  <div class="sep"></div>
+  <button class="tbtn" id="kolazBtn" title="Kolaż — układanie zdjęć w siatce (wraca się przyciskiem „Edytor")"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAACXBIWXMAAAsTAAALEwEAmpwYAAAAXUlEQVR4nO2UQQqAMAwE+zzr/z9g6z9GLAo5aA7bSwmZa6csCWRLCQOwAyffdKAqrg24Hzya4tqAwc90A8XNgLVW1PE5FNcGVOdjAzbFDQRZFQ9ZFVOXnFXxEqwqLmSvbcJKnMu0AAAAAElFTkSuQmCC"><span>Kolaż</span></button>
+  <div class="sep"></div>
+  <button class="tbtn" id="tplMenuBtn" title="Szablony — otwórz galerię"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAACXBIWXMAAAsTAAALEwEAmpwYAAAAcUlEQVR4nO2UQQrAIAwEfV7t/z/QpP+YUk9SErAaaBHnqpuFPUxK0wDswMk4CmSr4H6IQqyCQsAShVXg8ulEShyHVZCDSgTY0nzQpgqtNeBkhlUhDZk+VfD4Y2XcO6vgFxPpWw3gZ7pVIbUGnMxkqrgAmPRBrY9GTC0AAAAASUVORK5CYII="><span>Szablony</span></button>
+  <button class="tbtn" id="newBtn" title="Nowy — pusty projekt, tylko białe tło"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAACXBIWXMAAAsTAAALEwEAmpwYAAAAo0lEQVR4nO2QPQ6DMAxGM7VbO4HUqxRxgF6M/hwA7gVI7KByB6aHIpKtIYRElZDyJg/292wL8U+AM/ABRuxMQAVcXAQy3JUGSLcK9OZ3S5+mdZLoqa19QALUqu6AW1CBWOpUXaAvuQYV/JCUIoBgwMwUQvAAepPBW2AiCqzEF1mJLzrGi0bVk+0Iz9Xsd63phT/FmuAEvOUWO4LlzFNmuF7vxQwWfpJkI15Y1wAAAABJRU5ErkJggg=="><span>Nowy</span></button>
+  <button class="tbtn" id="resetBtn" title="Reset — przywróć szablon startowy"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAACXBIWXMAAAsTAAALEwEAmpwYAAABbklEQVR4nN2UTU4CQRCFJxDcCCbuPYBRbsHShYQYl+xVkMAt4BhGXXgBD0DkApqIPwfQJerG1WfKvEnanma6o3HDSyqZ6feq30x1V2XZygCYWnhrdaALXAEPwIdiDlwCh8BaqsE39FwFToFX4ngGOskGwCZw7bzfAEfANrCu2AUGwK2jmwCVFIM86QXYi3yU/ekJ8KmccYqB4Q7YCmgK56T1lmPSTjFwMfU1S/J7op+AWkiw+KNBVX9uOMh+A0oMxA8lOf8vg6Yk8yz1AF04ZbPmqwb4hvi3LEC+i2wUSAGYOSaPvhGwIW6R+dAoMOwUyJ8H2dXmOWapJboQOSiQy43uvVs20h5nfk6mwZV3cqG+MUSvqU1FDS7DcXRHD0C/tNEk6khkbd8KisJ58VHhiCeOSa+sXCpLP2nYOUkVxwTVdagbUlc0tZbX3DAuHdcBo7bqGYNp9pM39kxqdiNstuhKWjNa2LOtGRc+0JXBFweAHywhLigqAAAAAElFTkSuQmCC"><span>Reset</span></button>
+  <div class="sep"></div>
+  <button class="tbtn" id="undoBtn" title="Cofnij (Ctrl+Z)"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAACXBIWXMAAAsTAAALEwEAmpwYAAAAwklEQVR4nO3UQWoCQRBG4QYDOUEkbhMvEfVs4pxBzA0iuYc7caULL6AnEBIE8ZPRDoQsdDpOr/Stq/9HVVEdwp1rQBMzTHKFL5yY1h3+hHkMX+L5Hn4EG9XZYY1P9EIGwV/e8ZC63NaZ2gZe0MdXfDOq0kVlyQ94+yXphkySQawfXxT859DwGmtXlQSpXwUeo2AbcoB2cgeJgiIKPnKEd/GNPTp1hTbiWIoYXjK8JnDiPMOLl5wo2JULLWde21jCTXIA3mvcwqxaTrgAAAAASUVORK5CYII="></button>
+  <button class="tbtn" id="redoBtn" title="Ponów (Ctrl+Y)"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAACXBIWXMAAAsTAAALEwEAmpwYAAAAvUlEQVR4nO3UwWlCQRSF4QHFDiK61DQR0ZSmWIQkHWj6cCeudGEDIQ0EBUH4ZHAkWYi+p85K//09P3OGe0N4kgtMMUc9l2DmwDKLBC9YJMkKzQeT4B1f+MFOcX4vBVfxWSKwtOAYvkYfbVRKVNS4VMsx/K1AjcXD00DsPNK/e3gkfWikFXIsGrZpqJblVPh7QTvkAJMkGOQS9JJgg04uycc/yRCv5/bgGkHc5JHzTO8h6mKM7xO36HbBk5DYA7gZ3MUJPbXRAAAAAElFTkSuQmCC"></button>
+  <div class="sep"></div>
+  <button class="tbtn" id="alignH" title="Wyśrodkuj w poziomie"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAACXBIWXMAAAsTAAALEwEAmpwYAAAAtElEQVR4nM2VSw7DIAxEs8ql2lyvpbkWZ4FrvIoKpHygcmwSZaSsMDwyY4thuJMAn74zAT9pNo7AB4js5VuA/EdbxXzWuATMlUItoMgtAeXmD6tFwDOXhUMbTXVXAGJHi6aaRY7+Ib9rbRo6AEI6fNWmUiHMQC16ACpT7QUW7af3D2A2ZOAkgGbL0rAo1ZaATT6jXLscEBUWTUcscoaQXxLAdqq9AKCf3mENl/lsAJz76Gv0BbLy0ZkUt31SAAAAAElFTkSuQmCC"></button>
+  <button class="tbtn" id="alignV" title="Wyśrodkuj w pionie"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAACXBIWXMAAAsTAAALEwEAmpwYAAAAn0lEQVR4nN2UWw6EIAxF+dI9+djeqOOyXIts4xgUM/zMtJDqJJ6EhNwULrchde5OgBqYAc8HD0xAZWEQLvrGaGFwvrxJtC5qq4XBjqQDVUyb18oMg3dRKzMMfJTaRGvFVmYY7GjPpwVLWJKOsu5BcESzZrnP4Dlw9TclIuko66xHRW85KsYfv+dlOa7X5OKwH6RxXRZdS3F0pzcoi/5PNhSS0ZnewLoNAAAAAElFTkSuQmCC"></button>
+  <span id="status"></span>
+  <div class="grow"></div>
+  <input type="range" id="zoom" min="15" max="200" value="42" title="Zoom"><span id="zv" style="color:#777;font-size:11px;width:34px;flex:0 0 34px">42%</span>
+  <button class="tbtn" id="helpBtn" title="Pomoc"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAACXBIWXMAAAsTAAALEwEAmpwYAAABw0lEQVR4nMWVu0oDURCGV2wSFMFFBInYesFCX8BEC1/B0gvRV0jQt7CzsbD2VpsIRkHwUgaNChaawkY0av/J6CxO4tlkVxQHDoR//rlk/nNmPe8/DfCBBWAXqABveiqKic//SeIksAzUaG3Pyk1GTd4PnJsEe0AWGAQ69AwBi0DB8CQmFSV5VQOugIkIDaWBa42phhbRsQSdHwDdkf7yZ2w3UNLYUyDhIi2bzuuSA6PADvAIPADrQJ/jQtxojrzncAaC1o0FGAdeHOLeAb0N3IwR/qtJvW4fgjr+WUF9G9rIAHCo2KqDX1TfnAXlTotlHQGbwIXcHoONKb/s4C+pb9uCMnexQS+CAdNNCsgVFqtY8FXBzhaJ23WcAX/FwelU32usAnwmLxuR1wRz8LrUX4s1Ir4KiB4zQFsIzzminTCR45oRecuC8woWfqHAvuaataCvj0Ms3ST4CDhu4p/SHE/fVo1ZFbdAT9wC1K+KnIuQAM6UUIq57Hzzut3LTokps65lBWciJJ80nd9H+SaktIvAinozhvURyRlRLBBU7KRl8oZx5Y3wzUwEzYWOpUUh+ZDMyeICLvXFy5HfgokvslZ/Yu8LRYoWCxfk/wAAAABJRU5ErkJggg=="></button>
+  <select id="fmt" title="Format pliku" style="flex:0 0 auto">
+    <option value="png">PNG</option>
+    <option value="jpg">JPG</option>
+  </select>
+  <button class="primary" id="png"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAACXBIWXMAAAsTAAALEwEAmpwYAAAArElEQVR4nO2UQQ6CMBAAe/IHEn2L8Xuo7/JGPOGBF8AHfMCY1S1pQjcIhUTQSXpamClNg3M/BXCVNWfgxT9gguLmgkUFeF/JG5BZAZnpM8OvLlCo7+4jYUDlMhOKMYEtUKqgAvY+EJntBgeMiCddHkSy4ChC2qNL/s/QjZhy0+Pf7PmShy5z56anL/Ap6w40OjskyI/qqGPDM9ORxwIb4CL1BHENnMQ19hS+jyc+9QyKzTFxQwAAAABJRU5ErkJggg=="><span>Pobierz</span></button>
+</div>
+
+<div id="main">
+<div id="toolbar">
+  <button class="tool" data-add="text" title="Tekst"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAACXBIWXMAAAsTAAALEwEAmpwYAAAAVklEQVR4nO3UQQ6AIAwF0V5Pr92bqPcYgq5tg43i4r+EFZAhXWAmI4AVOHhuB5Yo0A9UbVHg9Na+fRHwvgoBj+6nyF5YhQIZNKIMGtGUEXH9L3f8/wFpz3Bq5eYINeQAAAAASUVORK5CYII="><span>Tekst</span></button>
+  <button class="tool" data-add="rule" title="Linia"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAACXBIWXMAAAsTAAALEwEAmpwYAAAAJklEQVR4nO3NMQEAAAjDsPm3hbAigAsensZAEknaA4q7+g8kKUMDovF+kWMQ8/gAAAAASUVORK5CYII="><span>Linia</span></button>
+  <button class="tool" data-add="box" title="Kształt"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAACXBIWXMAAAsTAAALEwEAmpwYAAABPElEQVR4nN2TvUoDQRSFV0znTxHEBxAkjWCrtVGMbyAR9AGsRNd3EbTwGQRBxFjHPISJNiI2EVRQ/OTqCY7D7Ao7K6in2Z0zl+/szr2TJL9JwBww/1PwTT61VTZ8CngQ/BV4BKbLDDgS/BA40HsLGCoD3hTwDpgEqsCNvGYsvOrANhx/Xd4tMBETsC/QuXsc9g6cam+vKHxWDX0CaoH9mvasZqZIwJozlt9ptUjAOHACPOeAX4BjYCz5/wJWgOuMo7gCGl59BUiBDnCvp60rWQEGyVPPg9vohtQKhgx2M8Lf5ax3PxwugTowAiwCXflpbEBH1oJXZyGmi9iAvqwv42lr+f2y/qDu1S3Jb8cGpE4P7FhGBR/0YLvIFHW9KbJpCekMGA4FNHJCesCyV28hO9ZQ3YO2fXnmPfizegMSXeSQ3W4KSQAAAABJRU5ErkJggg=="><span>Kształt</span></button>
+  <button class="tool" data-add="img" title="Obraz…"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAACXBIWXMAAAsTAAALEwEAmpwYAAAA3klEQVR4nN2U4Q2CMBCF+YUuIHEWCcM4gg6ByBSuhMY4AazxGUwxtTlKe+AfXkIaes37yrscSbIaARugBjr06oArkEqA3nwpVRJguPlhRgq58Wil4kda80kft+D0pBvNdgagDsp2BuDbE3zZLgDIgeIfgEqIqLTqW+AM3IBT/x4LSE1jW/NchiYDGdA48MbshwE8EWTAwxx/AkezYu3rAMAOuJujL2Av7OsA/N68XzNPPQ7AhLlzLg7ASCyeLw0HxJpHATTmUwB7crXmhe93LU2uVqUEsCdXq9ae+HXoDa5jn4REW14gAAAAAElFTkSuQmCC"><span>Obraz…</span></button>
+  <div class="spacer"></div>
+  <button class="tool" id="tbToggle" title="Rozwiń / zwiń"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAACXBIWXMAAAsTAAALEwEAmpwYAAAAX0lEQVR4nO2UQQqAMAwE84kW+/+n9FY86cHnjIg9VZDkUCk1cx3YhYVExHG6AGRgBaLFWQoKN3sb9OYsBQHYatABJI37b0mse18UrRujgOcMi8ZNHv7VoeWur8JxxMIJtpl0/vIP+rsAAAAASUVORK5CYII="><span>Zwiń panel</span></button>
+</div>
+
+<div id="canvasArea"><div id="scaler"><div id="stage"></div></div></div>
+
+<div id="panel">
+  <div class="paneBox">
+    <h2>Elementy</h2>
+    <div id="list"></div>
+  </div>
+
+  <div class="paneBox">
+    <h2>Właściwości</h2>
+    <div id="props"></div>
+  </div>
+</div>
+</div><!-- /main -->
+
+<div id="kolazWrap"><iframe id="kolazFrame" title="Kolaż"></iframe></div>
+
+<div id="ctx">
+  <div class="ci" data-act="edit"><img alt=""><span>Edytuj tekst</span></div>
+  <div class="ci" data-act="dup"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAACXBIWXMAAAsTAAALEwEAmpwYAAAAqElEQVR4nO2WQQ6DIBBFWdk7VXu9il6rZ5FrvAYzJDZW88dIu/ElbJDhCX4DIfwCoAEGIKGTgJhrFcHIcXpFUN68day6s5pJGTyjTl4AXrmFWgKZvwmAmwXAm67hI107gvF4uIiKINmju2M32lW6dgQz6uSbdauOS2B8+5hdrS2KpXP5658paEwyVRFscQlqHUQPz0EUF+ny8lQE5TKQ06WSx/bSZeAM3pMa1Dube2TMAAAAAElFTkSuQmCC" alt=""><span>Duplikuj</span></div>
+  <div class="ci" data-act="up"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAACXBIWXMAAAsTAAALEwEAmpwYAAAAgklEQVR4nO2SQQqAIBAA/YSS/3+KN+mUhx7SAyYqISmlaC0IHPCy6MzBVarxGwADTPGYN+SBnVAtwlleLwJoYIjCMZGnM1tL3iUBLYrk5GqbrxTuWJH8GHgcAXzpEzkEMkvg7wQc0Oc2hEwgiSxv3GXgIr4ikrSACCK/DjjxKjY+Zwb57GM7Noc/2AAAAABJRU5ErkJggg==" alt=""><span>Warstwa wyżej</span></div>
+  <div class="ci" data-act="down"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAACXBIWXMAAAsTAAALEwEAmpwYAAAAg0lEQVR4nO2SSw5AMBQAewnC/Y9iJ1a6cBAHGClPCP2FdiE6SXfvzSz6lCp8CqAzL2dgpQScIKh/B9hOcQDq2ICZlZ3wCQO9ePQ1YguI3Mwa+phABYyyMAGtK2CZbYIBX4RT4LHcF+HgndwT2Xkvd3zimdsRpIzoZPJLZJaXVl5QOVkA8JpjOvS7dfIAAAAASUVORK5CYII=" alt=""><span>Warstwa niżej</span></div>
+  <div class="ci danger" data-act="del"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAACXBIWXMAAAsTAAALEwEAmpwYAAAAiUlEQVR4nO2Wyw2AIBAFOWlPEtvz1xa1SBtjQLj4iXyMGsPccJ87CZAsQrwJUAMToNljvo1AlSOYuGbIEWjXpDmoSVebcwSW1Po2rLgP9bzA4xMiEkL/+6eA9XzU2foOgSUmUwSWskXPXdMQPiXQLisjmrfBw8eMQNLpQgSVG+ZzRGOT7bMeAKks5dHu3JyNFysAAAAASUVORK5CYII=" alt=""><span>Usuń</span></div>
+</div>
+
+<div id="lspop"></div>
+
+<div id="cfm">
+  <div id="cfmMsg"></div>
+  <div class="cfrow">
+    <button id="cfmNo">Anuluj</button>
+    <button id="cfmOk">Tak</button>
+  </div>
+</div>
+
+<div id="tplModal">
+  <div id="tplWin">
+    <div id="tplWinHead">
+      <span class="ttl">Szablony</span>
+      <button class="tbtn" id="tplSaveAs"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAACXBIWXMAAAsTAAALEwEAmpwYAAAAv0lEQVR4nO2SvQ3CMBBGXUEfCSQaBgExQBiMvymySzYIBX0gKWGEFx1yJBQ5+HSkgIjXWT5/7862c6MBmAInoEbPA8iARCOQcCtnYB4TtJ2v/PqJe39m6cPjkm6gRiAAM6Dw5Rdg4YYUCNJ5Z5JEI7gq7j7vkWQaQQqUWsHLmwj3qMAKfTnjEwBb4KZ4aPkMqUWgCW8pLYJwofXcX+C+4Ypqv7e2CoCNX1ahwgPDsQsJJsBR7B8EV8BesmKT/w4NTQZtg2C2LYoAAAAASUVORK5CYII=">Zapisz bieżący jako szablon</button>
+      <button class="tbtn" id="tplImport"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAACXBIWXMAAAsTAAALEwEAmpwYAAAAwElEQVR4nO2USQoCMRAA5zS+wOBbXN7niM/KbfCkB18QP+ADSjJ2oGdDsoigFuTS3enKAl1VPwVg/XqnoCNl4wI4AjfG2DmB3GiI73EAai3wgTlspCDQaEE4+Tr3iYCtlLmojVl13yvg+YknwAzrfExyNkfQSuoiDQNGYp42R7AEzpK+KoGOrZIF6inCaTXdrYp8MmPJbPMkgZLcZZkXtfGCGKYEYVRsCjTfTY2KhvLstaAWiSvQ2PnmvXH956M8AJAK2lBBEQ4KAAAAAElFTkSuQmCC">Import .json</button>
+      <div class="grow"></div>
+      <button class="tbtn" id="tplClose" title="Zamknij (Esc)"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAACXBIWXMAAAsTAAALEwEAmpwYAAAAhklEQVR4nO2UQQqAIBBFvUSR9z+KO2lVkFCHeSHZptDGshbV3/p9D3QYpf58M4ABWqAWdOvQNTkCy5I+JQlw3/GxOYIK6MJFB2hBpxELjiRchacklIJHJCMwFINvJCvYZyoGTwh2H3/HE+mScOefRTLCp+EqfpYnkYwiVyRPrApz67L7867Mszmg1Nbc9e0AAAAASUVORK5CYII="></button>
+    </div>
+    <div id="tplAsk">
+      <div class="farow"><label>Nazwa szablonu</label><input id="tplName" type="text" spellcheck="false"></div>
+      <div id="tplHint"></div>
+      <div class="fabtns"><button id="tplCancel">Anuluj</button><button class="primary" id="tplOk">Zapisz</button></div>
+    </div>
+    <div id="tplGrid"></div>
+  </div>
+</div>
+
+<div id="helpModal">
+  <div id="helpWin">
+    <div id="helpHead">
+      <img class="hh" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAACXBIWXMAAAsTAAALEwEAmpwYAAABw0lEQVR4nMWVu0oDURCGV2wSFMFFBInYesFCX8BEC1/B0gvRV0jQt7CzsbD2VpsIRkHwUgaNChaawkY0av/J6CxO4tlkVxQHDoR//rlk/nNmPe8/DfCBBWAXqABveiqKic//SeIksAzUaG3Pyk1GTd4PnJsEe0AWGAQ69AwBi0DB8CQmFSV5VQOugIkIDaWBa42phhbRsQSdHwDdkf7yZ2w3UNLYUyDhIi2bzuuSA6PADvAIPADrQJ/jQtxojrzncAaC1o0FGAdeHOLeAb0N3IwR/qtJvW4fgjr+WUF9G9rIAHCo2KqDX1TfnAXlTotlHQGbwIXcHoONKb/s4C+pb9uCMnexQS+CAdNNCsgVFqtY8FXBzhaJ23WcAX/FwelU32usAnwmLxuR1wRz8LrUX4s1Ir4KiB4zQFsIzzminTCR45oRecuC8woWfqHAvuaataCvj0Ms3ST4CDhu4p/SHE/fVo1ZFbdAT9wC1K+KnIuQAM6UUIq57Hzzut3LTokps65lBWciJJ80nd9H+SaktIvAinozhvURyRlRLBBU7KRl8oZx5Y3wzUwEzYWOpUUh+ZDMyeICLvXFy5HfgokvslZ/Yu8LRYoWCxfk/wAAAABJRU5ErkJggg==">
+      <span class="ttl">Pomoc</span>
+      <div class="grow"></div>
+      <button class="tbtn" id="helpClose" title="Zamknij (Esc)"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAACXBIWXMAAAsTAAALEwEAmpwYAAAAhklEQVR4nO2UQQqAIBBFvUSR9z+KO2lVkFCHeSHZptDGshbV3/p9D3QYpf58M4ABWqAWdOvQNTkCy5I+JQlw3/GxOYIK6MJFB2hBpxELjiRchacklIJHJCMwFINvJCvYZyoGTwh2H3/HE+mScOefRTLCp+EqfpYnkYwiVyRPrApz67L7867Mszmg1Nbc9e0AAAAASUVORK5CYII="></button>
+    </div>
+    <div id="helpBody">
+      <nav id="helpNav">
+        <button class="hnav on" data-tab="start"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAACXBIWXMAAAsTAAALEwEAmpwYAAABxUlEQVR4nM3Vy4uOYRgG8M84LBgbhxkp/gFlrURNMwsphCxm4bASQsleSt9KoqzUZFj5H5TkUGywUIqQYjEONcnZYn56dL/19PY+73y+kVyr777v676u5/TeX6fzvwPzMYLzuIN3+I6bcxVegEN4qRmf5yK+Hg8zsWfoYgwbIveiX/EdaXWVCHZjIKuPRu1uP+Lb8DMELmNxA+dM1M+1CQ3Edo/iYKx6I75Ec7fQNw9PgzNWEl9dO986rrQsbGdwXqfXVSLdCNJzXMAlPIncDwwW+pbEZSccLolvDsJbLIvcYLzthF0tRzMZnEdYWDJIF5dwKssdm+1V4Gxw0h2t67QQ09mVMN7AT7u7FvX09W4pikfDrRaDxxiqPdmvUfuIra3iLaZDIV6ZjON2zXykL/GCSYUPWW5Pr0IrcBXTmIr5sigzqZAufikuRnyk1+l4v+HsuxnnN7K4Mjjei8GBIKfxuwabIp5qMojdpmGXMNqLQfqzSNgb8dqIp+sGOI338ftBPk1L4sOYwSesxD68CoHJBoMK17Gql9Vvj4ZvYVLhHpbXdvkGE2m6ziqcNZ7MRGdCaH9xIv4p0mDDifg6h/+K6L/CLz6zbtfrMtPkAAAAAElFTkSuQmCC"><span>Start</span></button>
+        <button class="hnav" data-tab="canvas"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAACXBIWXMAAAsTAAALEwEAmpwYAAAApklEQVR4nM2VQQ6DIBBFuQTE3v8o7kxXuuhBOMBrTCAdNUybMkN8iRvB/zKATAh3AUhALk/yCN/4sJlJuIbbSoBFBMrwncVCMAPPUkkllXdzt0BS04MX9Aq+lY4ikEuphaubhy6Qh+EoASKwlgkvYPpDEE8ZDzm4/53W5KGC2CxPUL9sjOnL7LrJQ47pL6AITMBDgPdlx4DrOrk2nODdMk8Sn6bfwxsOR6ahDFOCngAAAABJRU5ErkJggg=="><span>Płótno</span></button>
+        <button class="hnav" data-tab="elements"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAACXBIWXMAAAsTAAALEwEAmpwYAAABd0lEQVR4nO3VvUodURQF4IsKUSy0SJMHUFHfIdcopAsJKGplp2KVMm3K9GIKyVPE5AFCAsFo7x+ioBb+dV47/cKRM3AY5/6qaOGCA8PZa68zZ9bee0qlpwAMYRmHOIjPQ/chPIIVXLuN6xgrNyvajkmsJWIVLKE/rqW4l+FfzGmvJdyNOWwliSf4jJcF/B58xFHC38OnEMuTR3GaEMMh8+hq4MZdkZu+WNAaS0lZ8A8+oK2p71q60WiLuUEjYDcNbsbNvxi/wwHv8KvogFAtx8kVd7DQ4CfqxCw2kvxzvM0TX2AmRzzFF7yqYXLojQz70eTeemU6gdUk8RJfMYA+LOIiia9jGh3VRH+HVbD/Gt9xVaXRfuJNXT1s16oiDMbxcBDXNwwXmPw+it+Uer4Pzlrsg87YoFklilqjRcSZHPGkAZPrd3KVWRTmS4ZKYnLRLApza6oVk8t1pumP0EMPYfJy/n/wbHLlTibXqKhyKyY3jUZMfjT8BxNyL2gDUSS9AAAAAElFTkSuQmCC"><span>Elementy</span></button>
+        <button class="hnav" data-tab="keyboard"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAACXBIWXMAAAsTAAALEwEAmpwYAAAAiUlEQVR4nO2VSw6AIAwFWemdJF5P0WuReBO8xhh/CRo0aElk4ezaxRvoolXqJwagBHpgRM4IdEDhC+bw1BhfsL+8SjANvWU5v7kgDb/MOzcACwyC+mOBFLIR8HA0+QnekoeA9fux2PwEEggI9mWnRclqyapDy86QnsYXFNuRcAmCHdAeDs6PumECe+cKRXO80UsAAAAASUVORK5CYII="><span>Klawiatura</span></button>
+        <button class="hnav" data-tab="templates"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAACXBIWXMAAAsTAAALEwEAmpwYAAAAcUlEQVR4nO2UQQrAIAwEfV7t/z/QpP+YUk9SErAaaBHnqpuFPUxK0wDswMk4CmSr4H6IQqyCQsAShVXg8ulEShyHVZCDSgTY0nzQpgqtNeBkhlUhDZk+VfD4Y2XcO6vgFxPpWw3gZ7pVIbUGnMxkqrgAmPRBrY9GTC0AAAAASUVORK5CYII="><span>Szablony</span></button>
+        <button class="hnav" data-tab="export"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAACXBIWXMAAAsTAAALEwEAmpwYAAAArElEQVR4nO2UQQ6CMBAAe/IHEn2L8Xuo7/JGPOGBF8AHfMCY1S1pQjcIhUTQSXpamClNg3M/BXCVNWfgxT9gguLmgkUFeF/JG5BZAZnpM8OvLlCo7+4jYUDlMhOKMYEtUKqgAvY+EJntBgeMiCddHkSy4ChC2qNL/s/QjZhy0+Pf7PmShy5z56anL/Ap6w40OjskyI/qqGPDM9ORxwIb4CL1BHENnMQ19hS+jyc+9QyKzTFxQwAAAABJRU5ErkJggg=="><span>Eksport</span></button>
+      </nav>
+      <div id="helpContent">
+
+        <div class="hpane" data-pane="start">
+          <p class="hlede">Clama tworzy grafiki Sallory — piny, posty, stories. Cały przepływ w pięciu krokach:</p>
+          <div class="hrow"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAACXBIWXMAAAsTAAALEwEAmpwYAAAAcUlEQVR4nO2UQQrAIAwEfV7t/z/QpP+YUk9SErAaaBHnqpuFPUxK0wDswMk4CmSr4H6IQqyCQsAShVXg8ulEShyHVZCDSgTY0nzQpgqtNeBkhlUhDZk+VfD4Y2XcO6vgFxPpWw3gZ7pVIbUGnMxkqrgAmPRBrY9GTC0AAAAASUVORK5CYII="><div><b>1 · Wybierz szablon</b><span class="d">Przycisk „Szablony” w górnym pasku otwiera galerię — klik na kartę wczytuje projekt.</span></div></div>
+          <div class="hrow"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAACXBIWXMAAAsTAAALEwEAmpwYAAABdUlEQVR4nM2UO0sDURCF81BBBRW0ScBYa21pFa0j+C8srQRfvRa22tlqFDRNCsEqRcBoJb7RQns7LbT4ZMhZmYTEsOwGPXBhd9g939y5ZzeR+CsBi0AJGOgW4JS6FroFWBVgp6k+rJ3tRwVMC/DkaqNATfW7qICUmQA3rnYu80dgIuyBngEr6jyleq8t91wFuAQyYbs9plG3QF8okw6AfksLsAs8ewCwBrwBZaAApGMDC2DmXi+CZuIClGVsB3zvQJ/AIZAHkmEMLYoXdqC6L7jkJIEZoChAoAdgGRjrZD7kcl5TLa2xmObcs1lgHXh1oA9gD8i1A5Rctz8zpm5kOmrxjjUwrwgHumoHONB2Gz4iIKOR2Mq6+iSwrV1/OcD17wfRGl7Uyxu6n2o6B7uuApu+iTCAWRnZzHvUuelESYr2W6eeIPs3oZkHYchHMvYClmRa0cxtLIOJuASMAO9u7tXYzAMp54G2EnELyFnOtcZjB/w7fQMWc3QshBtvbgAAAABJRU5ErkJggg=="><div><b>2 · Podmień treść</b><span class="d">Tekst edytujesz z menu prawego przycisku („Edytuj tekst”) albo klawiszem Enter. Zdjęcie przeciągnij z dysku prosto na płótno.</span></div></div>
+          <div class="hrow"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAACXBIWXMAAAsTAAALEwEAmpwYAAAApklEQVR4nM2VQQ6DIBBFuQTE3v8o7kxXuuhBOMBrTCAdNUybMkN8iRvB/zKATAh3AUhALk/yCN/4sJlJuIbbSoBFBMrwncVCMAPPUkkllXdzt0BS04MX9Aq+lY4ikEuphaubhy6Qh+EoASKwlgkvYPpDEE8ZDzm4/53W5KGC2CxPUL9sjOnL7LrJQ47pL6AITMBDgPdlx4DrOrk2nODdMk8Sn6bfwxsOR6ahDFOCngAAAABJRU5ErkJggg=="><div><b>3 · Ułóż elementy</b><span class="d">Przeciągaj, rozciągaj za uchwyty, obracaj kółkiem nad elementem. Czerwone linie same wyrównują.</span></div></div>
+          <div class="hrow"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAACXBIWXMAAAsTAAALEwEAmpwYAAAAv0lEQVR4nO2SvQ3CMBBGXUEfCSQaBgExQBiMvymySzYIBX0gKWGEFx1yJBQ5+HSkgIjXWT5/7862c6MBmAInoEbPA8iARCOQcCtnYB4TtJ2v/PqJe39m6cPjkm6gRiAAM6Dw5Rdg4YYUCNJ5Z5JEI7gq7j7vkWQaQQqUWsHLmwj3qMAKfTnjEwBb4KZ4aPkMqUWgCW8pLYJwofXcX+C+4Ypqv7e2CoCNX1ahwgPDsQsJJsBR7B8EV8BesmKT/w4NTQZtg2C2LYoAAAAASUVORK5CYII="><div><b>4 · Zapisz układ</b><span class="d">W galerii „Zapisz bieżący jako szablon” — projekt zostaje na tym komputerze.</span></div></div>
+          <div class="hrow"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAACXBIWXMAAAsTAAALEwEAmpwYAAAArElEQVR4nO2UQQ6CMBAAe/IHEn2L8Xuo7/JGPOGBF8AHfMCY1S1pQjcIhUTQSXpamClNg3M/BXCVNWfgxT9gguLmgkUFeF/JG5BZAZnpM8OvLlCo7+4jYUDlMhOKMYEtUKqgAvY+EJntBgeMiCddHkSy4ChC2qNL/s/QjZhy0+Pf7PmShy5z56anL/Ap6w40OjskyI/qqGPDM9ORxwIb4CL1BHENnMQ19hS+jyc+9QyKzTFxQwAAAABJRU5ErkJggg=="><div><b>5 · Pobierz PNG lub JPG</b><span class="d">Format wybierasz na liście obok przycisku. Gotowa grafika w pełnym rozmiarze trafia do folderu Pobrane.</span></div></div>
+          <p class="hnote">Każda zakładka po lewej opisuje jedną część dokładniej.</p>
+        </div>
+
+        <div class="hpane" data-pane="canvas" style="display:none">
+          <div class="hrow"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAACXBIWXMAAAsTAAALEwEAmpwYAAAApklEQVR4nM2VQQ6DIBBFuQTE3v8o7kxXuuhBOMBrTCAdNUybMkN8iRvB/zKATAh3AUhALk/yCN/4sJlJuIbbSoBFBMrwncVCMAPPUkkllXdzt0BS04MX9Aq+lY4ikEuphaubhy6Qh+EoASKwlgkvYPpDEE8ZDzm4/53W5KGC2CxPUL9sjOnL7LrJQ47pL6AITMBDgPdlx4DrOrk2nODdMk8Sn6bfwxsOR6ahDFOCngAAAABJRU5ErkJggg=="><div><b>Przesuwanie i przyciąganie</b><span class="d">Złap element i przeciągnij. Czerwone linie to przyciąganie — do środka, marginesów i innych elementów. Z wciśniętym Alt przyciąganie jest wyłączone.</span></div></div>
+          <div class="hrow"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAACXBIWXMAAAsTAAALEwEAmpwYAAAAeElEQVR4nO2UywmAMBAF04Rg/62kAy+pIxWMCAr5+sG3gpA5hjCThSXODX4H4OkTrQNIpjgAJmAxCZDLgzRALZ9lARry/fx9gI5cEuBEnmyXvyOqLnIhf/rSbFSU8jIgl6cBE3kR0Ms3iq8lSOWNQIlXBKJpYPA5KxvTnosHIKzbAAAAAElFTkSuQmCC"><div><b>Rozciąganie</b><span class="d">Uchwyty na bokach i narożnikach zaznaczenia. Narożnik tekstu skaluje razem z szerokością także czcionkę; obraz w trybie „Cały obraz" trzyma proporcje, w ramce (Kadr) rozciąga się swobodnie.</span></div></div>
+          <div class="hrow"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAACXBIWXMAAAsTAAALEwEAmpwYAAABUUlEQVR4nN2UTUoDQRCFh5G4MQoewL2EnMJsBYNKdh7AnyToLaK3EH/AA3iBAQ9gBCPqXpf+bFx9oZIaLIaeng5NNnlQMExXvde8rqokWWgAy0AHuAFGwK/GC3AHHAArhZpMIoR8D3inGh9AF0i1bgIfcQpcGIJHoA805LYam8Ah8GDy7oH1EIGc/E9JJjfz5G8Dn1oz9AqoLTn5VqWP/3UbwJP1rexBc8+PAomzsodxJXeM50uRAl+u5Fs97CXzANPeFjTmJfCtAquRPJlz0IAfFahHkK/53iDaIqCpHCPX4bUe9iMEzpTj0temw9A2tZAaM2z7ZYP2pgnHyYxguvAEr0CtLGnXrIrWDOQtrRHsVCWfG5ETn11qS9eQD0JukxoR1NdT7ZC6RlP/2QU3qNq8RaG2+lkFyWkHExdEatIRwBXwrMMoId/yT87cD7owGANnlq+hO9ygdwAAAABJRU5ErkJggg=="><div><b>Obrót</b><span class="d">Kółko nad zaznaczonym elementem. Kąt przyciąga do 45°; z Alt obrót jest płynny. Dokładną wartość wpiszesz w polu „Obrót °” w panelu.</span></div></div>
+          <div class="hrow"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAACXBIWXMAAAsTAAALEwEAmpwYAAABdUlEQVR4nM2UO0sDURCF81BBBRW0ScBYa21pFa0j+C8srQRfvRa22tlqFDRNCsEqRcBoJb7RQns7LbT4ZMhZmYTEsOwGPXBhd9g939y5ZzeR+CsBi0AJGOgW4JS6FroFWBVgp6k+rJ3tRwVMC/DkaqNATfW7qICUmQA3rnYu80dgIuyBngEr6jyleq8t91wFuAQyYbs9plG3QF8okw6AfksLsAs8ewCwBrwBZaAApGMDC2DmXi+CZuIClGVsB3zvQJ/AIZAHkmEMLYoXdqC6L7jkJIEZoChAoAdgGRjrZD7kcl5TLa2xmObcs1lgHXh1oA9gD8i1A5Rctz8zpm5kOmrxjjUwrwgHumoHONB2Gz4iIKOR2Mq6+iSwrV1/OcD17wfRGl7Uyxu6n2o6B7uuApu+iTCAWRnZzHvUuelESYr2W6eeIPs3oZkHYchHMvYClmRa0cxtLIOJuASMAO9u7tXYzAMp54G2EnELyFnOtcZjB/w7fQMWc3QshBtvbgAAAABJRU5ErkJggg=="><div><b>Zaznaczanie</b><span class="d">Klik zaznacza element, klik na puste płótno odznacza. Element można też wybrać z listy „Elementy” po prawej.</span></div></div>
+          <div class="hrow"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAACXBIWXMAAAsTAAALEwEAmpwYAAABYklEQVR4nN2VwS4DURSGp7HUTrshsVeWWsIOidZbtbyG8gbCIzSE2IgViXoFJoiMpeSTo//IDZ3b2xEL/uQmM/f85/wz/z1nJor+NYBt4AC4A161BsA+0P5J4QXgjPE4BeqTFt8EnlTgHugADWBaq6m9B3GMux5afBF4VuIhUPFwY+BI3MegN3FsseKlAH4JOFbOSciBZrZ8e3Lg3NaI/apjV8snYN1i6OTEP5AT2xlG6fkErBUNSwUEmgoPfAKpSOUvtuTh0y6zVHtpiEClgECsvZcQixoFLFpW+NYnYONv6BYQ2FV4zyfQFslaLp6gTWtAotytXAGR7duCJjRk0KaAC+X0o4CEusY+E6l6uDWn+BuwNlZAiRuOSGJnokMsqx1XNFiJU9xwA8yGiszbt8XTohn6wCpwrXv7V8wFiUioZeNv7ac5SXXdcw8UmCksEgqzRzYZLqPfAEORq1Ht/HfxDpfU5WG4ZGYwAAAAAElFTkSuQmCC"><div><b>Tło, rozmiar i zoom</b><span class="d">Gdy nic nie jest zaznaczone, prawy panel pokazuje grupę „Płótno” — tam ustawisz tło i rozmiar. Lista rozmiarów jest pogrupowana wg kanałów (Pinterest, Instagram, Facebook / www, sklep, wydruk 300 dpi), a pola Szer. / Wys. przyjmują dowolny własny rozmiar (od 50 px). Suwak zoomu (15–200%) został w górnym pasku; dwuklik na element przybliża go i ustawia na środku widoku. Zoom nie wpływa na eksport.</span></div></div>
+        </div>
+
+        <div class="hpane" data-pane="elements" style="display:none">
+          <div class="hrow"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAACXBIWXMAAAsTAAALEwEAmpwYAAAAQElEQVR4nGNgGAVDCvz///8wCNPSAjAYtQAn+A8FDCPbgv+QpEguODzwFgz9OMAH/o9aMBiC6DBNi+tRwEALAADBUu0xjqvqRQAAAABJRU5ErkJggg=="><div><b>Dodawanie</b><span class="d">Lewy pasek: Tekst, Linia, Kształt, Obraz. Plik graficzny można też upuścić z dysku prosto na płótno.</span></div></div>
+          <div class="hrow"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAACXBIWXMAAAsTAAALEwEAmpwYAAABd0lEQVR4nO3VvUodURQF4IsKUSy0SJMHUFHfIdcopAsJKGplp2KVMm3K9GIKyVPE5AFCAsFo7x+ioBb+dV47/cKRM3AY5/6qaOGCA8PZa68zZ9bee0qlpwAMYRmHOIjPQ/chPIIVXLuN6xgrNyvajkmsJWIVLKE/rqW4l+FfzGmvJdyNOWwliSf4jJcF/B58xFHC38OnEMuTR3GaEMMh8+hq4MZdkZu+WNAaS0lZ8A8+oK2p71q60WiLuUEjYDcNbsbNvxi/wwHv8KvogFAtx8kVd7DQ4CfqxCw2kvxzvM0TX2AmRzzFF7yqYXLojQz70eTeemU6gdUk8RJfMYA+LOIiia9jGh3VRH+HVbD/Gt9xVaXRfuJNXT1s16oiDMbxcBDXNwwXmPw+it+Uer4Pzlrsg87YoFklilqjRcSZHPGkAZPrd3KVWRTmS4ZKYnLRLApza6oVk8t1pumP0EMPYfJy/n/wbHLlTibXqKhyKyY3jUZMfjT8BxNyL2gDUSS9AAAAAElFTkSuQmCC"><div><b>Warstwy</b><span class="d">Lista „Elementy” w prawym panelu — im wyżej na liście, tym bliżej wierzchu grafiki. Przeciągnij kartę wyżej / niżej, aby zmienić kolejność; to samo zrobią strzałki „Warstwa wyżej / niżej” w menu prawego przycisku myszy. Dwuklik na kartę przybliża element na płótnie, a karta zaznaczonego elementu sama przewija się do widoku.</span></div></div>
+          <div class="hrow"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAACXBIWXMAAAsTAAALEwEAmpwYAAAAXklEQVR4nOWSQQ4AEAwE9//f8rAV4iQhVdpQk7itrNYAX0IylWNZUNG8akbqCyRZv4IV2Fi6dNUnB9dxxMwiCDJbmuJEwWCqCqx4R8cYGlNhCAUZvwLzFWlgeI3LmBkKbQcHBnEFngAAAABJRU5ErkJggg=="><div><b>Właściwości</b><span class="d">Prawy panel: pozycja, szerokość, obrót; dla tekstu font, grubość, pogrubienie, kursywa, rozmiar, odstępy, kolor, obrys (kontur liter) i cień; dla kształtu figura (prostokąt / gwiazda), zaokrąglenie, kolor i cień; dla obrazu Kadr (Cały obraz / Wypełnij ramkę / Zmieść w ramce — „Wypełnij" kadruje zdjęcie w ramce, Poz. X/Y % przesuwa kadr), filtry (Jasność / Kontrast / Nasycenie %) i zaokrąglenie rogów. Każdy element ma też „Krycie %" — przezroczystość (100 = pełny, 0 = niewidoczny).</span></div></div>
+          <div class="hrow"><img id="hlpRichIco"><div><b>Znaczniki w tekście</b><span class="d">Fragment tekstu wyróżnisz znacznikami (jak w Unity) — wpisujesz je w polu Tekst albo podczas edycji na płótnie; można je zagnieżdżać. Znacznik działa tylko jako kompletna, poprawnie zamknięta para — niezamknięty pozostaje zwykłym tekstem. Działają:</span>
+            <div style="margin-top:9px">
+              <div class="krow wide"><span class="keys"><kbd>&lt;b&gt;tekst&lt;/b&gt;</kbd></span><span class="kd">pogrubienie fragmentu</span></div>
+              <div class="krow wide"><span class="keys"><kbd>&lt;i&gt;tekst&lt;/i&gt;</kbd></span><span class="kd">kursywa</span></div>
+              <div class="krow wide"><span class="keys"><kbd>&lt;size=48&gt;tekst&lt;/size&gt;</kbd></span><span class="kd">rozmiar fragmentu w px</span></div>
+              <div class="krow wide"><span class="keys"><kbd>&lt;color=#b4593f&gt;tekst&lt;/color&gt;</kbd></span><span class="kd">kolor fragmentu — hex</span></div>
+              <div class="krow wide"><span class="keys"><kbd>&lt;color=red&gt;tekst&lt;/color&gt;</kbd></span><span class="kd">kolor — nazwa CSS (red, white…)</span></div>
+            </div>
+          </div></div>
+          <div class="hrow"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAACXBIWXMAAAsTAAALEwEAmpwYAAAAqElEQVR4nO2WQQ6DIBBFWdk7VXu9il6rZ5FrvAYzJDZW88dIu/ElbJDhCX4DIfwCoAEGIKGTgJhrFcHIcXpFUN68day6s5pJGTyjTl4AXrmFWgKZvwmAmwXAm67hI107gvF4uIiKINmju2M32lW6dgQz6uSbdauOS2B8+5hdrS2KpXP5658paEwyVRFscQlqHUQPz0EUF+ny8lQE5TKQ06WSx/bSZeAM3pMa1Dube2TMAAAAAElFTkSuQmCC"><div><b>Menu elementu</b><span class="d">Prawy przycisk myszy na elemencie — na płótnie lub na liście „Elementy”: duplikuj, usuń, warstwa wyżej / niżej (strzałki). Gdy element jest na samej górze, „Warstwa wyżej” jest nieaktywna — analogicznie na dole. Wyśrodkowanie w poziomie i w pionie to dwa przyciski w górnym pasku.</span></div></div>
+        </div>
+
+        <div class="hpane" data-pane="keyboard" style="display:none">
+          <div class="krow"><span class="keys"><kbd>←</kbd><kbd>→</kbd><kbd>↑</kbd><kbd>↓</kbd></span><span class="kd">przesuwają element o 1 px</span></div>
+          <div class="krow"><span class="keys"><kbd>Shift</kbd> + <kbd>strzałki</kbd></span><span class="kd">przesuwają o 10 px</span></div>
+          <div class="krow"><span class="keys"><kbd>Dwuklik</kbd></span><span class="kd">przybliża element na środek widoku</span></div>
+          <div class="krow"><span class="keys"><kbd>Enter</kbd></span><span class="kd">edycja zaznaczonego tekstu</span></div>
+          <div class="krow"><span class="keys"><kbd>Delete</kbd></span><span class="kd">usuwa zaznaczony element</span></div>
+          <div class="krow"><span class="keys"><kbd>Ctrl</kbd> + <kbd>Z</kbd></span><span class="kd">cofa — do 60 kroków</span></div>
+          <div class="krow"><span class="keys"><kbd>Ctrl</kbd> + <kbd>Y</kbd></span><span class="kd">ponawia cofniętą zmianę (także Ctrl + Shift + Z)</span></div>
+          <div class="krow"><span class="keys"><kbd>Ctrl</kbd> + <kbd>C</kbd></span><span class="kd">kopiuje zaznaczony element</span></div>
+          <div class="krow"><span class="keys"><kbd>Ctrl</kbd> + <kbd>V</kbd></span><span class="kd">wkleja kopię — każde kolejne wklejenie z przesunięciem</span></div>
+          <div class="krow"><span class="keys"><kbd>Alt</kbd> + przeciąganie</span><span class="kd">wyłącza przyciąganie do linii</span></div>
+          <div class="krow"><span class="keys"><kbd>Alt</kbd> + obrót</span><span class="kd">wyłącza skok co 45°</span></div>
+          <div class="krow"><span class="keys"><kbd>Esc</kbd></span><span class="kd">zamyka to okno i galerię szablonów</span></div>
+        </div>
+
+        <div class="hpane" data-pane="templates" style="display:none">
+          <div class="hrow"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAACXBIWXMAAAsTAAALEwEAmpwYAAAAcUlEQVR4nO2UQQrAIAwEfV7t/z/QpP+YUk9SErAaaBHnqpuFPUxK0wDswMk4CmSr4H6IQqyCQsAShVXg8ulEShyHVZCDSgTY0nzQpgqtNeBkhlUhDZk+VfD4Y2XcO6vgFxPpWw3gZ7pVIbUGnMxkqrgAmPRBrY9GTC0AAAAASUVORK5CYII="><div><b>Galeria</b><span class="d">Przycisk „Szablony” w górnym pasku. Karty pokazują podgląd; klik wczytuje szablon (Ctrl+Z cofa wczytanie).</span></div></div>
+          <div class="hrow"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAACXBIWXMAAAsTAAALEwEAmpwYAAAAv0lEQVR4nO2SvQ3CMBBGXUEfCSQaBgExQBiMvymySzYIBX0gKWGEFx1yJBQ5+HSkgIjXWT5/7862c6MBmAInoEbPA8iARCOQcCtnYB4TtJ2v/PqJe39m6cPjkm6gRiAAM6Dw5Rdg4YYUCNJ5Z5JEI7gq7j7vkWQaQQqUWsHLmwj3qMAKfTnjEwBb4KZ4aPkMqUWgCW8pLYJwofXcX+C+4Ypqv7e2CoCNX1ahwgPDsQsJJsBR7B8EV8BesmKT/w4NTQZtg2C2LYoAAAAASUVORK5CYII="><div><b>Zapisywanie</b><span class="d">„Zapisz bieżący jako szablon” w oknie galerii. Szablony żyją w tej przeglądarce, na tym komputerze.</span></div></div>
+          <div class="hrow"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAACXBIWXMAAAsTAAALEwEAmpwYAAAA20lEQVR4nNWVSwrCMBBAs9Kdrgx4FcUDeDF/B9ADdVdcqeBe0Qu46upJbAakNk3apqIPAiHMzEuaNFHqmwB9YAPc8ZMBO2BQR2CK1+UI6FCBzHziiRNOtSSSFRoHjICD7Z+BcVSByvvarkBWMowqKJFsVQTBFTdZDMEcuLgMrQUufl8AJKZ1KXjxXwLyz7K3Z13QdiyJIUjtsPxI7/00hkAXiuO64BrvAZ+S0tuz1SaTSx626U5OkY8QgTw4U2+1AsDM5t6qgla0Z1El6AFrM4sGhU3O0tRwCrrgCbGgJ6tON3rFAAAAAElFTkSuQmCC"><div><b>Import i eksport .json</b><span class="d">Ikonka na karcie eksportuje szablon do pliku; „Import .json” wczytuje go z powrotem — np. na innym komputerze.</span></div></div>
+          <div class="hrow"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAACXBIWXMAAAsTAAALEwEAmpwYAAAAiUlEQVR4nO2Wyw2AIBAFOWlPEtvz1xa1SBtjQLj4iXyMGsPccJ87CZAsQrwJUAMToNljvo1AlSOYuGbIEWjXpDmoSVebcwSW1Po2rLgP9bzA4xMiEkL/+6eA9XzU2foOgSUmUwSWskXPXdMQPiXQLisjmrfBw8eMQNLpQgSVG+ZzRGOT7bMeAKks5dHu3JyNFysAAAAASUVORK5CYII="><div><b>Usuwanie</b><span class="d">Ikonka kosza na karcie usuwa zapisany szablon. Wbudowanych szablonów nie da się usunąć.</span></div></div>
+        </div>
+
+        <div class="hpane" data-pane="export" style="display:none">
+          <div class="hrow"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAACXBIWXMAAAsTAAALEwEAmpwYAAAArElEQVR4nO2UQQ6CMBAAe/IHEn2L8Xuo7/JGPOGBF8AHfMCY1S1pQjcIhUTQSXpamClNg3M/BXCVNWfgxT9gguLmgkUFeF/JG5BZAZnpM8OvLlCo7+4jYUDlMhOKMYEtUKqgAvY+EJntBgeMiCddHkSy4ChC2qNL/s/QjZhy0+Pf7PmShy5z56anL/Ap6w40OjskyI/qqGPDM9ORxwIb4CL1BHENnMQ19hS+jyc+9QyKzTFxQwAAAABJRU5ErkJggg=="><div><b>Pobierz PNG / JPG</b><span class="d">Przycisk po prawej w górnym pasku; format (PNG lub JPG) wybierasz na liście obok. Grafika renderuje się w pełnym rozmiarze płótna, niezależnie od zoomu. PNG = pełna jakość; JPG = mniejszy plik.</span></div></div>
+          <div class="hrow"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAACXBIWXMAAAsTAAALEwEAmpwYAAABBUlEQVR4nO3UPy8EURSG8Qmy1DqNL6GzUaholUpq7UZHgWT5Cj6EUqGUSLQKCYlEs6IRtX/5ycgVye7MnZk7qxFPN/dk3ufcnJObZX8CTOMID0a5Qa+tIA+vYreN4LvzxYLaKt7xhpVUwReR+l6NG+ZNHqLTWJCDbdzWEPWzFEEV6IaYwa8IojllBazhEh+acYDJqADLeJXOfqkAE7gKxzv5d1YTLI3MokCwHo7uC9cuLpgL/z7GBNfhaLNJ+FBzpzHBOS4wlSA4DnG96JBTwV2IWxi7APMh6rlyTRMFGyHqpOw17bYIn8FZyNkaLvaNjyfMDgs64akdtAh+Cdv3M9x/shp8AhRU8xbRQVM2AAAAAElFTkSuQmCC"><div><b>Gdzie ląduje plik</b><span class="d">W folderze Pobrane. Nazwa pliku = nazwa szablonu + wymiary, np. poradnik-naszyjniki-1000x1500.png (albo .jpg).</span></div></div>
+          <div class="hrow"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAACXBIWXMAAAsTAAALEwEAmpwYAAABe0lEQVR4nL3WT0sVURzG8RtI3YVamy4EotGfl5Ab6T3oxp1vQCJC2rVp1ytoExG3bdAbaCUIUiKIf1AxAzduAlcWhFSfOPi7cRpmxkm994GzuHPO7/ed8zwzZ26rNQhhCavo9Auw4lSbfYHgJjYCsoNbA4VgDF9wgp/4Grt+hVmM/g8kNU86xu24fi9+V+kbXuNOXfOreIEfWeFebye4gqEYHTzEUyzid6w/iR7tYvMJfIxFv/Aeu00zwX28CfuS1v/ZDQ5iIvn84KxMqoTJzOKDfOIl3uJGoeAuDouZ1CkFjm7qWbeojeclwf7NJFu7gGe4dha8VzAeHorwPuARtise4aPM94kmgP0oSA2nsuulmRR8328CSP69w/WSuSrIaNR0G9lUksdjfIoX6nsM8Sif/1hJxVhTr8/nhuBJdqfTGIkxk2XV+D0pAwxjruwwC9/nsXUhyECPeqdfvuW+QVQALhXSqr+BdIynz27SyqUDMkj6A7HUF0BRfwB2WgqDFltIewAAAABJRU5ErkJggg=="><div><b>Wszystko offline</b><span class="d">Clama działa w całości na tym komputerze — czcionki i obrazy są wbudowane, nic nie wychodzi do sieci.</span></div></div>
+        </div>
+
+      </div>
+    </div>
+    <div id="helpFoot"><button class="primary" id="helpDone">Gotowe</button></div>
+  </div>
+</div>
+
+<div id="cpop">
+  <div id="cpHead">
+    <span class="ttl" id="cpTitle">Kolor</span>
+    <button class="cpx" id="cpClose" title="Zamknij (Esc)"><img></button>
+  </div>
+  <div id="cpBody">
+    <div class="cprow">
+      <input type="color" id="cpNative" title="Wybierz własny kolor">
+      <input type="text" id="cpHex" maxlength="7" spellcheck="false" title="Kod hex">
+      <button class="cpx" id="cpPick" title="Pipeta — pobierz kolor z ekranu"><img></button>
+    </div>
+    <div class="cplab">Zapisane<button id="cpSave" title="Zapisz bieżący kolor">+</button></div>
+    <div class="cpsw" id="cpSaved"></div>
+    <div class="cplab">Ostatnie</div>
+    <div class="cpsw" id="cpRecent"></div>
+  </div>
+</div>
+
+<div id="fntModal">
+  <div id="fntWin">
+    <div id="fntHead">
+      <span class="ttl">Własne fonty</span>
+      <div class="grow"></div>
+      <button class="tbtn" id="fntAdd"><img>Dodaj plik fontu…</button>
+      <button class="tbtn" id="fntClose" title="Zamknij (Esc)"><img></button>
+    </div>
+    <div id="fntAsk">
+      <div class="farow"><label>Nazwa fontu</label><input id="fntName" type="text" spellcheck="false"></div>
+      <div id="fntHint"></div>
+      <div class="fabtns"><button id="fntCancel">Anuluj</button><button class="primary" id="fntOk">Dodaj font</button></div>
+    </div>
+    <div id="fntList"></div>
+    <div id="fntFoot">Obsługiwane pliki: TTF · OTF · WOFF · WOFF2. Drugi plik pod tą samą nazwą = pogrubienie (700). Fonty zapisują się w tej przeglądarce.</div>
+  </div>
+</div>
+
+<input type="file" id="filePick" accept="image/*" style="display:none">
+<input type="file" id="jsonPick" accept="application/json" style="display:none">
+<input type="file" id="fontPick" accept=".ttf,.otf,.woff,.woff2" style="display:none">
+
+<script>
+/* =========================================================================
+   Clama — Claude + Lasha + Manoni. Sallora's visual studio.
+   (formerly "Pin Studio")
+   ========================================================================= */
+
+/* boldW = what Pogrubienie / <b> resolve to: DM Sans has a REAL 700 face in fonts.js,
+   WindSong's bold is its real 500, Bellefair has no true bold anywhere -> synthetic 700 */
+/* fav = Sallora's brand fonts -> the "Ulubione" optgroup on top of the Font select;
+   the rest are embedded the same way (400+700 real faces, latin + latin-ext) */
+const FONTS = {
+  'Bellefair': { weights:[400], stack:"'Bellefair', Georgia, serif", boldW:700, fav:true },
+  'WindSong':  { weights:[400,500], stack:"'WindSong', cursive", boldW:500, fav:true },
+  'DM Sans':   { weights:[400,500,700], stack:"'DM Sans', system-ui, sans-serif", boldW:700, fav:true },
+  'Playfair Display':   { weights:[400,700], stack:"'Playfair Display', Georgia, serif", boldW:700 },
+  'Cormorant Garamond': { weights:[400,700], stack:"'Cormorant Garamond', Georgia, serif", boldW:700 },
+  'Cinzel':             { weights:[400,700], stack:"'Cinzel', Georgia, serif", boldW:700 },
+  'Montserrat':         { weights:[400,700], stack:"'Montserrat', system-ui, sans-serif", boldW:700 },
+  'Lato':               { weights:[400,700], stack:"'Lato', system-ui, sans-serif", boldW:700 },
+  'Dancing Script':     { weights:[400,700], stack:"'Dancing Script', cursive", boldW:700 }
+};
+const CREAM = '#FFF4EE', INK = '#1d1d1d', ROSE = '#5e2b20', HAIR = '#e6dcd2', MUTED = '#8a7d72';
+const SNAP = 6;
+
+/* ---------- built-in templates ---------- */
+function tplSizeGuide() {
+  return {
+    name: 'Poradnik — naszyjniki', w:1000, h:1500, bg:CREAM,
+    els: [
+      { id:'e1', type:'text', name:'Eyebrow', x:170, y:70, w:660, text:'PRZEWODNIK · SALLORA STUDIO',
+        font:'DM Sans', weight:400, size:14, ls:0.32, lh:1.4, color:ROSE, align:'center', italic:false },
+      { id:'e2', type:'text', name:'Tytuł', x:100, y:127, w:800, text:'Jak dobrać\ndługość naszyjnika',
+        font:'Bellefair', weight:400, size:62, ls:0.01, lh:1.12, color:INK, align:'center', italic:false },
+      { id:'e3', type:'img', name:'Zdjęcie', x:60, y:317, w:880, radius:0, src:(window.ASSETS||{})['rozmiary-naszyjniki']||'' },
+      { id:'e4', type:'text', name:'SALLORA', x:250, y:1198, w:500, text:'SALLORA',
+        font:'Bellefair', weight:400, size:34, ls:0.28, lh:1, color:INK, align:'center', italic:false },
+      { id:'e5', type:'text', name:'studio', x:250, y:1241, w:500, text:'studio',
+        font:'WindSong', weight:400, size:44, ls:0, lh:1, color:ROSE, align:'center', italic:false },
+      { id:'e6', type:'rule', name:'Linia', x:80, y:1311, w:840, thick:1, color:HAIR },
+      { id:'e7', type:'text', name:'Podpis', x:150, y:1341, w:700,
+        text:'Od chokera o długości 35 cm po długie, efektowne naszyjniki. Każdy egzemplarz tworzymy specjalnie dla Ciebie — w wybranym rozmiarze.',
+        font:'DM Sans', weight:400, size:19, ls:0, lh:1.5, color:'#4a423c', align:'center', italic:false },
+      { id:'e8', type:'text', name:'Adres', x:250, y:1424, w:500, text:'sallorastudio.com',
+        font:'DM Sans', weight:400, size:14, ls:0.18, lh:1, color:MUTED, align:'center', italic:false }
+    ]
+  };
+}
+function tplBlank() {
+  return {
+    name: 'Pusty — z logo', w:1000, h:1500, bg:CREAM,
+    els: [
+      { id:'b1', type:'text', name:'Tytuł', x:100, y:110, w:800, text:'Tytuł pinu',
+        font:'Bellefair', weight:400, size:62, ls:0.01, lh:1.12, color:INK, align:'center', italic:false },
+      { id:'b2', type:'box', name:'Miejsce na zdjęcie', x:60, y:300, w:880, h:880, radius:0, color:'#efe3d9' },
+      { id:'b3', type:'text', name:'SALLORA', x:250, y:1290, w:500, text:'SALLORA',
+        font:'Bellefair', weight:400, size:34, ls:0.28, lh:1, color:INK, align:'center', italic:false },
+      { id:'b4', type:'text', name:'studio', x:250, y:1333, w:500, text:'studio',
+        font:'WindSong', weight:400, size:44, ls:0, lh:1, color:ROSE, align:'center', italic:false },
+      { id:'b5', type:'text', name:'Adres', x:250, y:1424, w:500, text:'sallorastudio.com',
+        font:'DM Sans', weight:400, size:14, ls:0.18, lh:1, color:MUTED, align:'center', italic:false }
+    ]
+  };
+}
+const BUILTIN = { 'Poradnik — naszyjniki': tplSizeGuide, 'Pusty — z logo': tplBlank };
+
+/* ---------- state ---------- */
+const stage = document.getElementById('stage');
+const scaler = document.getElementById('scaler');
+let doc = null;          // current template
+let selId = null;
+let history = [];
+
+const MODE = new URLSearchParams(location.search).get('mode');
+const RENDER = MODE === 'render' || MODE === 'test';
+
+/* ---------- storage ---------- */
+const LS_DOCS = 'sallora-studio-docs';
+const LS_CUR  = 'sallora-studio-current';
+function allDocs() { try { return JSON.parse(localStorage.getItem(LS_DOCS)) || {}; } catch(e) { return {}; } }
+function saveDocs(d) { localStorage.setItem(LS_DOCS, JSON.stringify(d)); }
+function persist() { if (!RENDER) localStorage.setItem(LS_CUR, JSON.stringify(doc)); }
+/* Reset wraca do dokumentu startowego: LS_RESET (jeśli ustawiony — nowszy proponowany szablon) albo wbudowany tplSizeGuide */
+const LS_RESET = 'sallora-studio-reset';
+function baselineDoc() {
+  try { const d = JSON.parse(localStorage.getItem(LS_RESET)); if (d && Array.isArray(d.els)) return normalize(d); } catch (e) {}
+  return tplSizeGuide();
+}
+
+/* ---------- własne fonty (user files, localStorage) ----------
+   LS shape: { "<Family>": { faces: { "400": dataUri, "700": dataUri? } } }.
+   FONTS entries + the #ufcss <style> are rebuilt from storage by syncUserFonts();
+   export must embed the same CSS (taint rule: every font = data: URI). */
+const LS_FONTS = 'sallora-studio-userfonts';
+function userFonts() { try { return JSON.parse(localStorage.getItem(LS_FONTS)) || {}; } catch(e) { return {}; } }
+function userFontCss() {
+  const uf = userFonts(); let css = '';
+  for (const n in uf) for (const w in uf[n].faces)
+    css += `@font-face{font-family:'${n}';font-weight:${w};font-style:normal;src:url(${uf[n].faces[w]});}`;
+  return css;
+}
+function syncUserFonts() {
+  for (const k in FONTS) if (FONTS[k].user) delete FONTS[k];
+  const uf = userFonts();
+  for (const n in uf) {
+    const ws = Object.keys(uf[n].faces).map(Number).sort((a,b) => a - b);
+    FONTS[n] = { weights: ws, stack: `'${n}', sans-serif`, boldW: 700, user: true };
+  }
+  document.getElementById('ufcss').textContent = userFontCss();
+}
+
+/* ---------- boot ---------- */
+(function injectFonts() {
+  const s = document.createElement('style');
+  s.textContent = window.FONT_CSS || '';
+  document.head.appendChild(s);
+  const u = document.createElement('style');   // własne fonty — refreshed by syncUserFonts()
+  u.id = 'ufcss';
+  document.head.appendChild(u);
+  syncUserFonts();
+})();
+
+async function boot() {
+  await Promise.all([
+    document.fonts.load('62px Bellefair'), document.fonts.load('44px WindSong'),
+    document.fonts.load('19px "DM Sans"'), document.fonts.load('500 19px "DM Sans"')
+  ]).catch(()=>{});
+  await document.fonts.ready;
+
+  if (RENDER) {
+    document.getElementById('panel').remove();
+    document.getElementById('toolbar').remove();
+    document.getElementById('topbar').remove();
+    document.getElementById('tplModal').remove();
+    document.getElementById('helpModal').remove();
+    document.getElementById('fntModal').remove();
+    document.getElementById('cpop').remove();
+    document.getElementById('cfm').remove();
+    document.getElementById('canvasArea').style.cssText = 'padding:0;overflow:hidden;display:block';
+    scaler.style.transform = 'none';
+    try {
+      const r = await fetch('layout.json?t=' + Math.random());
+      doc = normalize(await r.json());
+    } catch (e) { doc = tplSizeGuide(); }
+    document.body.style.background = doc.bg;
+    stage.style.boxShadow = 'none';
+    draw();
+    // mode=test: run the real PNG export pipeline and paint the result on screen,
+    // so a headless screenshot proves SVG -> canvas works (fonts + images + no taint).
+    if (MODE === 'test') {
+      try {
+        const cv = await renderCanvas();
+        const png = cv.toDataURL('image/png');      // throws if the canvas is tainted
+        document.body.innerHTML = '<img src="' + png + '" style="display:block">';
+      } catch (err) {
+        document.body.innerHTML = '<pre style="font:24px monospace;color:#c00;padding:40px">EXPORT FAILED: ' + err.message + '</pre>';
+      }
+    }
+    return;
+  }
+
+  const cur = localStorage.getItem(LS_CUR);
+  doc = cur ? normalize(JSON.parse(cur)) : tplSizeGuide();
+  draw(); buildList(); buildProps(); applyZoom();
+}
+
+/* accepts the OLD flat-array layout.json too */
+function normalize(d) {
+  if (Array.isArray(d)) {
+    return { name:'Import', w:1000, h:1500, bg:CREAM, els: d.map(e => ({
+      id:e.id, type: e.type==='rule' ? 'rule' : e.type, name:e.name, x:e.x, y:e.y, w:e.w,
+      text:e.text, font:e.font, weight:400, size:e.size, ls:e.ls, lh:e.lh, color:e.color,
+      align:e.align, italic:!!e.italic, src:e.src ? ((window.ASSETS||{})['rozmiary-naszyjniki']||e.src) : undefined,
+      thick:1, radius:0
+    })) };
+  }
+  d.els.forEach(e => {
+    if (e.weight == null) e.weight = 400;
+    if (e.rot == null) e.rot = 0;
+    if (e.type === 'img' && (e.fit === 'cover' || e.fit === 'contain')) {   // kadr defaults for hand-made docs
+      if (e.fx == null) e.fx = 50;
+      if (e.fy == null) e.fy = 50;
+      if (e.h == null) e.h = Math.round((e.w || 100) * 0.75);
+    }
+  });
+  return d;
+}
+
+/* ---------- draw ---------- */
+/* star = SVG path in the element's px space — stretches with the box, survives the export;
+   Zaokrągl. rounds every vertex with a quadratic curve (Ramiona 3 + Wcięcie 50 = a clean triangle) */
+function starPath(e) {
+  const w = e.w || 100, h = e.h || 100;
+  const n = Math.max(3, Math.round(e.points || 5));
+  const inn = Math.min(95, Math.max(5, e.inner == null ? 50 : +e.inner)) / 100;
+  const pts = [];
+  for (let i = 0; i < n * 2; i++) {
+    const k = i % 2 ? inn : 1;
+    const a = Math.PI * i / n - Math.PI / 2;
+    pts.push([w / 2 + w / 2 * k * Math.cos(a), h / 2 + h / 2 * k * Math.sin(a)]);
+  }
+  const r = Math.max(0, +e.radius || 0);
+  if (!r) return 'M' + pts.map(p => p[0].toFixed(2) + ' ' + p[1].toFixed(2)).join('L') + 'Z';
+  let d = '';
+  for (let i = 0; i < pts.length; i++) {
+    const v = pts[i], a = pts[(i - 1 + pts.length) % pts.length], b = pts[(i + 1) % pts.length];
+    const ta = Math.min(0.5, r / Math.hypot(a[0] - v[0], a[1] - v[1]));
+    const tb = Math.min(0.5, r / Math.hypot(b[0] - v[0], b[1] - v[1]));
+    const p1 = [v[0] + (a[0] - v[0]) * ta, v[1] + (a[1] - v[1]) * ta];
+    const p2 = [v[0] + (b[0] - v[0]) * tb, v[1] + (b[1] - v[1]) * tb];
+    d += (i ? 'L' : 'M') + p1[0].toFixed(2) + ' ' + p1[1].toFixed(2) +
+         'Q' + v[0].toFixed(2) + ' ' + v[1].toFixed(2) + ' ' + p2[0].toFixed(2) + ' ' + p2[1].toFixed(2);
+  }
+  return d + 'Z';
+}
+/* shadow colour: hex + Krycie % -> rgba */
+function shRgba(e) {
+  const c = e.shc || '#000000';
+  if (!/^#[0-9a-fA-F]{6}$/.test(c)) return c;
+  const a = Math.min(100, Math.max(0, e.sho == null ? 35 : +e.sho)) / 100;
+  return 'rgba(' + parseInt(c.slice(1, 3), 16) + ',' + parseInt(c.slice(3, 5), 16) + ',' + parseInt(c.slice(5, 7), 16) + ',' + a + ')';
+}
+/* one element -> styled DOM node; shared by the canvas and the template gallery thumbs */
+/* ---------- Unity3D-style rich text ----------
+   <b> <i> <size=48> <color=#b4593f> (or <color=red>), nestable, closed like </b>.
+   STRICT (Lasha's rule): a tag styles ONLY as a complete, correctly nested open+close
+   pair — an unclosed opener, an orphan closer or a crossed pair stays literal text.
+   Output = spans with inline styles, so it renders in list previews and survives
+   the SVG export unchanged. */
+function richStyle(body, bw) {
+  let m;
+  if (body === 'b') return 'font-weight:' + (bw || 700);
+  if (body === 'i') return 'font-style:italic';
+  if ((m = body.match(/^size=(\d+(?:\.\d+)?)$/))) return 'font-size:' + m[1] + 'px';
+  if ((m = body.match(/^color=(#[0-9a-fA-F]{3,8}|[a-zA-Z]+)$/))) return 'color:' + m[1];
+  return null;
+}
+function richHTML(str, bw) {
+  const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  /* pass 1: tokenize + pair strictly (a closer only pairs with the innermost open tag) */
+  const toks = [], stack = [];
+  const re = /<(\/?)([a-zA-Z]+(?:=[^<>\s]+)?)>/g;
+  let m;
+  while ((m = re.exec(str))) {
+    const closing = !!m[1];
+    if (closing && m[2].indexOf('=') !== -1) continue;          // </size=5> is not a closer
+    const css = closing ? null : richStyle(m[2].toLowerCase(), bw);
+    if (!closing && css == null) continue;                      // unknown tag -> literal
+    const t = { i: m.index, len: m[0].length, closing, name: m[2].split('=')[0].toLowerCase(), css, ok: false };
+    if (!closing) stack.push(t);
+    else if (stack.length && stack[stack.length - 1].name === t.name) { stack.pop().ok = true; t.ok = true; }
+    toks.push(t);
+  }
+  /* pass 2: emit — only paired tags become spans, everything else is escaped text */
+  let out = '', last = 0;
+  toks.forEach(t => {
+    if (!t.ok) return;
+    out += esc(str.slice(last, t.i)) + (t.closing ? '</span>' : '<span style="' + t.css + '">');
+    last = t.i + t.len;
+  });
+  out += esc(str.slice(last));
+  return out;
+}
+
+function elNode(e) {
+  const d = document.createElement('div');
+  d.className = 'el';
+  d.dataset.id = e.id;
+  d.style.left = e.x + 'px';
+  d.style.top = e.y + 'px';
+  d.style.width = e.w + 'px';
+  if (e.rot) d.style.transform = 'rotate(' + e.rot + 'deg)';
+  /* Krycie %: opacity goes on the CONTENT (child img/svg/div/span), never on .el itself —
+     on .el it would also fade the sel outline + handles */
+  const op = e.op == null ? 1 : Math.min(100, Math.max(0, +e.op)) / 100;
+
+  if (e.type === 'img') {
+    if (e.radius) { d.style.borderRadius = e.radius + 'px'; d.style.overflow = 'hidden'; }
+    const im = document.createElement('img');
+    im.src = e.src || '';
+    /* Kadr: cover = fill the fixed w×h frame (crop), contain = fit inside it;
+       fx/fy = object-position % (which part of the photo the crop shows).
+       No fit → the old behaviour: natural aspect, height follows width. */
+    if (e.fit === 'cover' || e.fit === 'contain') {
+      d.style.height = (e.h || 100) + 'px';
+      im.style.cssText = 'width:100%;height:100%;display:block;object-fit:' + e.fit +
+        ';object-position:' + Math.min(100, Math.max(0, e.fx ?? 50)) + '% ' +
+        Math.min(100, Math.max(0, e.fy ?? 50)) + '%;';
+    }
+    /* filtry: 100% = neutral, so the filter is emitted only when a value differs —
+       old docs and untouched images render byte-identical to before */
+    const flt = [];
+    if (e.br != null && +e.br !== 100) flt.push('brightness(' + Math.max(0, +e.br) + '%)');
+    if (e.ct != null && +e.ct !== 100) flt.push('contrast(' + Math.max(0, +e.ct) + '%)');
+    if (e.sat != null && +e.sat !== 100) flt.push('saturate(' + Math.max(0, +e.sat) + '%)');
+    if (flt.length) im.style.filter = flt.join(' ');
+    if (op < 1) im.style.opacity = op;
+    d.appendChild(im);
+  } else if (e.type === 'rule') {
+    /* the stroke is a child SVG <line> — same pattern as the star: dashes, caps and the
+       drop-shadow survive the export, sel outline + handles stay on the thin box */
+    const th = Math.max(1, +e.thick || 1);
+    d.style.height = th + 'px';
+    const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    s.style.cssText = 'position:absolute;left:0;top:0;width:100%;height:100%;display:block;overflow:visible;';
+    const ln = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    ln.setAttribute('x1', 0); ln.setAttribute('x2', e.w || 0);
+    ln.setAttribute('y1', th / 2); ln.setAttribute('y2', th / 2);
+    ln.setAttribute('stroke', e.color);
+    ln.setAttribute('stroke-width', th);
+    const gap = Math.max(1, +e.gap || 8);
+    if (e.lstyle === 'dash') {
+      ln.setAttribute('stroke-linecap', e.cap || 'butt');
+      ln.setAttribute('stroke-dasharray', Math.max(1, +e.dash || 12) + ' ' + gap);
+    } else if (e.lstyle === 'dot') {
+      /* dot = zero-length dash + a cap: round cap = circles, square = squares;
+         Przerwa means the VISIBLE gap, so the dot's own width (th) is added */
+      ln.setAttribute('stroke-linecap', e.cap === 'square' ? 'square' : 'round');
+      ln.setAttribute('stroke-dasharray', '0.1 ' + (gap + th));
+    } else if (e.lstyle === 'dashdot') {
+      /* mix: dash gap dot gap — with butt caps the dot is a th-long chunk (small square);
+         with round/square caps a 0.1 dash + the cap draws it, and th is added to the gaps
+         so Przerwa stays the VISIBLE gap (same rule as dot) */
+      const dash = Math.max(1, +e.dash || 12);
+      if ((e.cap || 'butt') === 'butt') {
+        ln.setAttribute('stroke-linecap', 'butt');
+        ln.setAttribute('stroke-dasharray', dash + ' ' + gap + ' ' + th + ' ' + gap);
+      } else {
+        ln.setAttribute('stroke-linecap', e.cap);
+        ln.setAttribute('stroke-dasharray', dash + ' ' + (gap + th) + ' 0.1 ' + (gap + th));
+      }
+    } else {
+      ln.setAttribute('stroke-linecap', e.cap || 'butt');
+    }
+    s.appendChild(ln);
+    if (e.sh) s.style.filter = 'drop-shadow(' + (e.shx ?? 6) + 'px ' + (e.shy ?? 6) + 'px ' + (e.shb ?? 12) + 'px ' + shRgba(e) + ')';
+    if (op < 1) s.style.opacity = op;
+    d.appendChild(s);
+  } else if (e.type === 'box') {
+    if (e.shape === 'triangle') { e.shape = 'star'; e.points = 3; e.inner = 50; }   // legacy value (lived <1 day)
+    d.style.height = (e.h || 100) + 'px';
+    /* the fill is a child, so the sel outline + handles stay clean and the shadow follows the shape */
+    let s;
+    if (!e.shape || e.shape === 'rect') {
+      s = document.createElement('div');
+      s.style.cssText = 'position:absolute;left:0;top:0;width:100%;height:100%;background:' + e.color + ';'
+        + (e.radius ? 'border-radius:' + e.radius + 'px;' : '');
+    } else {
+      s = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      s.setAttribute('viewBox', '0 0 ' + (e.w || 100) + ' ' + (e.h || 100));
+      s.setAttribute('preserveAspectRatio', 'none');
+      s.style.cssText = 'position:absolute;left:0;top:0;width:100%;height:100%;display:block;overflow:visible;';
+      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      path.setAttribute('d', starPath(e));
+      path.setAttribute('fill', e.color);
+      s.appendChild(path);
+    }
+    if (e.sh) s.style.filter = 'drop-shadow(' + (e.shx ?? 6) + 'px ' + (e.shy ?? 6) + 'px ' + (e.shb ?? 12) + 'px ' + shRgba(e) + ')';
+    if (op < 1) s.style.opacity = op;
+    d.appendChild(s);
+  } else {
+    d.style.fontFamily = FONTS[e.font] ? FONTS[e.font].stack : e.font;
+    const bw = (FONTS[e.font] || {}).boldW || 700;
+    d.style.fontWeight = e.bold ? bw : (e.weight || 400);
+    d.style.fontSize = e.size + 'px';
+    d.style.letterSpacing = e.ls + 'em';
+    d.style.lineHeight = e.lh;
+    d.style.color = e.color;
+    d.style.textAlign = e.align;
+    d.style.fontStyle = e.italic ? 'italic' : 'normal';
+    d.style.whiteSpace = 'pre-wrap';
+    d.style.wordBreak = 'break-word';
+    if (e.ls > 0 && e.align === 'center') d.style.textIndent = e.ls + 'em';
+    /* same sh* props as Kształt, but text-shadow — follows the glyphs, sel outline stays clean */
+    if (e.sh) d.style.textShadow = (e.shx ?? 6) + 'px ' + (e.shy ?? 6) + 'px ' + (e.shb ?? 12) + 'px ' + shRgba(e);
+    /* obrys: stroke BEHIND the fill (paint-order), so letters keep their full body;
+       inherits into rich-text spans — their fill colours stay their own */
+    if (e.ol) {
+      d.style.webkitTextStroke = Math.max(0, +(e.olw ?? 2)) + 'px ' + (e.olc || '#000000');
+      d.style.paintOrder = 'stroke fill';
+    }
+    const html = richHTML(e.text || '', bw);
+    /* text sits directly in .el, so a faded copy needs a wrapper span (block = same flow);
+       startEdit replaces the content with raw text anyway, draw() rebuilds after */
+    d.innerHTML = op < 1 ? '<span style="display:block;opacity:' + op + '">' + html + '</span>' : html;
+  }
+  return d;
+}
+
+function draw() {
+  stage.style.width  = doc.w + 'px';
+  stage.style.height = doc.h + 'px';
+  stage.style.background = doc.bg;
+  stage.innerHTML = '';
+
+  for (const e of doc.els) {
+    const d = elNode(e);
+    if (e.id === selId && !RENDER) d.classList.add('sel');
+
+    if (!RENDER) {
+      const hs = e.type === 'box' || e.type === 'img'
+        ? ['n','s','e','w','ne','nw','se','sw','rot']
+        : e.type === 'text'
+          ? ['e','w','ne','nw','se','sw','rot']
+          : ['e','w','rot'];   // rule
+      d.innerHTML += hs.map(h => '<div class="h ' + h + '"></div>').join('');
+      d.addEventListener('mousedown', onDown);
+      /* while text is being edited, keep the native menu (copy/paste) */
+      d.addEventListener('contextmenu', ev => {
+        if (d.getAttribute('contenteditable') === 'true') return;
+        openCtx(ev, e.id);
+      });
+    }
+    stage.appendChild(d);
+  }
+  if (!RENDER) { persist(); }
+}
+function node(id) { return stage.querySelector('[data-id="' + id + '"]'); }
+function el(id) { return doc.els.find(e => e.id === id); }
+function sel() { return el(selId); }
+
+/* ---------- history ---------- */
+let redoStack = [];
+function snap() { history.push(JSON.stringify(doc)); if (history.length > 60) history.shift(); redoStack.length = 0; }
+function undo() {
+  if (!history.length) return;
+  closeColorPop();               // the popover's apply callback would point at a stale doc
+  closeLsPop();                  // same stale-element risk for the Styl dropdown
+  redoStack.push(JSON.stringify(doc)); if (redoStack.length > 60) redoStack.shift();
+  doc = JSON.parse(history.pop());
+  draw(); buildList(); buildProps();
+}
+function redo() {
+  if (!redoStack.length) return;
+  closeColorPop(); closeLsPop();
+  history.push(JSON.stringify(doc)); if (history.length > 60) history.shift();  // direct push — snap() would wipe redoStack
+  doc = JSON.parse(redoStack.pop());
+  draw(); buildList(); buildProps();
+}
+
+/* ---------- drag / resize + snapping ---------- */
+let drag = null;
+function zoom() { return +document.getElementById('zoom').value / 100; }
+
+/* native dblclick NEVER fires on canvas elements: every mousedown redraws the stage, the node
+   under the cursor is replaced, and the browser's click counter resets — so the double-press
+   is detected manually here, keyed by element id (survives the redraw) */
+let lastDown = { id:null, t:0, x:0, y:0 };
+function onDown(ev) {
+  if (ev.button !== 0) return;   // right/middle click never drags (right = context menu)
+  const n = ev.currentTarget;
+  if (n.getAttribute('contenteditable') === 'true') return;
+  const onHandle = ev.target.classList.contains('h');
+  if (!onHandle && n.dataset.id === lastDown.id && ev.timeStamp - lastDown.t < 400
+      && Math.abs(ev.clientX - lastDown.x) < 6 && Math.abs(ev.clientY - lastDown.y) < 6) {
+    lastDown.id = null;
+    ev.preventDefault();
+    zoomToEl(n.dataset.id);
+    return;                      // second press = zoom, not a new drag
+  }
+  lastDown = onHandle ? { id:null, t:0, x:0, y:0 }
+                      : { id:n.dataset.id, t:ev.timeStamp, x:ev.clientX, y:ev.clientY };
+  selId = n.dataset.id;
+  const e = sel();
+  let mode = 'move';
+  const cl = ev.target.classList;
+  if (cl.contains('h')) {
+    for (const m of ['rot','ne','nw','se','sw','n','s','e','w']) if (cl.contains(m)) { mode = m; break; }
+  }
+  const hEl = n.offsetHeight;   // layout height — transform doesn't affect it
+  drag = { e, mode, snapped:false, sx:ev.clientX, sy:ev.clientY, ox:e.x, oy:e.y, ow:e.w,
+           oh:e.h || hEl, hEl, osize:e.size || 0, orot:e.rot || 0 };
+  draw(); buildList(); buildProps();
+  ev.preventDefault();
+}
+
+function snapTargets(self) {
+  const xs = [0, doc.w/2, doc.w, 60, doc.w-60, 80, doc.w-80];
+  const ys = [0, doc.h/2, doc.h, 70, doc.h-70];
+  for (const e of doc.els) {
+    if (e.id === self.id) continue;
+    const n = node(e.id); if (!n) continue;
+    const h = n.offsetHeight;
+    xs.push(e.x, e.x + e.w/2, e.x + e.w);
+    ys.push(e.y, e.y + h/2, e.y + h);
+  }
+  return { xs, ys };
+}
+function clearGuides() { stage.querySelectorAll('.guide').forEach(g => g.remove()); }
+function guide(dir, pos) {
+  const g = document.createElement('div');
+  g.className = 'guide ' + dir;
+  if (dir === 'v') g.style.left = pos + 'px'; else g.style.top = pos + 'px';
+  stage.appendChild(g);
+}
+
+window.addEventListener('mousemove', ev => {
+  if (!drag) return;
+  /* lazy snapshot: only a real gesture makes an undo step — a plain click adds none,
+     so Ctrl+Z never has to chew through identical states */
+  if (!drag.snapped) {
+    if (ev.clientX === drag.sx && ev.clientY === drag.sy) return;
+    snap(); drag.snapped = true;
+  }
+  const k = zoom();
+  const e = drag.e;
+
+  /* --- rotate: angle from element centre to the mouse --- */
+  if (drag.mode === 'rot') {
+    const r = stage.getBoundingClientRect();
+    const mx = (ev.clientX - r.left)/k, my = (ev.clientY - r.top)/k;
+    const n0 = node(e.id);
+    const cx = e.x + e.w/2, cy = e.y + (n0 ? n0.offsetHeight : drag.hEl)/2;
+    let a = Math.atan2(my - cy, mx - cx) * 180/Math.PI + 90;   // handle sits above centre
+    if (a > 180) a -= 360;
+    if (!ev.altKey) { const s = Math.round(a/45)*45; if (Math.abs(a - s) <= 4) a = s; }
+    a = Math.round(a);
+    if (a === 180) a = -180;
+    e.rot = a === -0 ? 0 : a;
+    draw(); buildProps();
+    return;
+  }
+
+  const dx = (ev.clientX - drag.sx)/k, dy = (ev.clientY - drag.sy)/k;
+
+  if (drag.mode === 'move') {
+    let nx = Math.round(drag.ox + dx), ny = Math.round(drag.oy + dy);
+    const n = node(e.id), h = n ? n.offsetHeight : 0;
+    const { xs, ys } = snapTargets(e);
+    clearGuides();
+    if (!ev.altKey) {
+      let best = null;
+      for (const t of xs) for (const [edge, off] of [['l',0],['c',e.w/2],['r',e.w]]) {
+        const d = Math.abs(nx + off - t);
+        if (d <= SNAP && (!best || d < best.d)) best = { d, val: t - off, line: t };
+      }
+      if (best) { nx = Math.round(best.val); guide('v', best.line); }
+      let bestY = null;
+      for (const t of ys) for (const off of [0, h/2, h]) {
+        const d = Math.abs(ny + off - t);
+        if (d <= SNAP && (!bestY || d < bestY.d)) bestY = { d, val: t - off, line: t };
+      }
+      if (bestY) { ny = Math.round(bestY.val); guide('h', bestY.line); }
+    }
+    e.x = nx; e.y = ny;
+    draw(); buildProps();
+    return;
+  }
+
+  /* --- resize from any handle ---
+     Mouse delta is projected onto the element's own (rotated) axes.
+     Unrotated: the opposite edge stays fixed. Rotated: the centre stays fixed
+     (avoids the drifting-anchor problem without heavy math). */
+  const th = drag.orot * Math.PI/180;
+  const ldx =  dx*Math.cos(th) + dy*Math.sin(th);
+  const ldy = -dx*Math.sin(th) + dy*Math.cos(th);
+  const m = drag.mode;
+  const sx = m.includes('e') ? 1 : m.includes('w') ? -1 : 0;
+  const sy = m.includes('s') ? 1 : m.includes('n') ? -1 : 0;
+  const rot = !!drag.orot;
+
+  if (e.type === 'text') {
+    if (sx && sy) {                       // corner = scale font with width
+      const w2 = Math.max(30, Math.round(drag.ow + sx*ldx));
+      const f = w2 / drag.ow;
+      e.w = w2;
+      e.size = Math.max(6, +(drag.osize * f).toFixed(1));
+      if (rot) { e.x = drag.ox + (drag.ow - w2)/2; e.y = drag.oy + drag.hEl*(1 - f)/2; }
+      else {
+        if (sx < 0) e.x = drag.ox + (drag.ow - w2);
+        if (sy < 0) e.y = drag.oy + drag.hEl*(1 - f);
+      }
+    } else {                              // side = reflow width only
+      const w2 = Math.max(30, Math.round(drag.ow + sx*ldx));
+      e.w = w2;
+      if (rot) e.x = drag.ox + (drag.ow - w2)/2;
+      else if (sx < 0) e.x = drag.ox + (drag.ow - w2);
+    }
+  } else if (e.type === 'img' && e.fit !== 'cover' && e.fit !== 'contain') {   // auto: aspect locked (height follows width)
+    const asp = drag.ow / (drag.hEl || 1);
+    let w2 = (sy && !sx) ? drag.ow + sy*ldy*asp : drag.ow + sx*ldx;
+    w2 = Math.max(12, Math.round(w2));
+    const h2 = drag.hEl * (w2/drag.ow);
+    e.w = w2;
+    if (rot) { e.x = drag.ox + (drag.ow - w2)/2; e.y = drag.oy + (drag.hEl - h2)/2; }
+    else {
+      if (sx < 0) e.x = drag.ox + (drag.ow - w2);
+      if (sy < 0) e.y = drag.oy + (drag.hEl - h2);
+    }
+  } else if (e.type === 'box' || e.type === 'img') {   // box, or an img in a frame (kadr) — free w/h
+    let w2 = drag.ow, h2 = drag.oh;
+    if (sx) w2 = Math.max(12, Math.round(drag.ow + sx*ldx));
+    if (sy) h2 = Math.max(12, Math.round(drag.oh + sy*ldy));
+    e.w = w2; e.h = h2;
+    if (rot) { e.x = drag.ox + (drag.ow - w2)/2; e.y = drag.oy + (drag.oh - h2)/2; }
+    else {
+      if (sx < 0) e.x = drag.ox + (drag.ow - w2);
+      if (sy < 0) e.y = drag.oy + (drag.oh - h2);
+    }
+  } else {                                // rule
+    const w2 = Math.max(12, Math.round(drag.ow + sx*ldx));
+    e.w = w2;
+    if (rot) e.x = drag.ox + (drag.ow - w2)/2;
+    else if (sx < 0) e.x = drag.ox + (drag.ow - w2);
+  }
+  e.x = Math.round(e.x); e.y = Math.round(e.y);
+  draw(); buildProps();
+});
+window.addEventListener('mouseup', () => { if (drag) { drag = null; clearGuides(); } });
+
+/* ---------- text edit ---------- */
+function startEdit(id) {
+  const n = node(id), e = el(id);
+  if (!n || !e || e.type !== 'text') return;
+  selId = id;
+  snap();
+  n.querySelectorAll('.h').forEach(h => h.remove());
+  n.textContent = e.text;   /* edit the RAW markup — innerText of the rich render would drop the tags */
+  n.setAttribute('contenteditable', 'true');
+  n.focus();
+  document.execCommand('selectAll', false, null);
+  n.addEventListener('blur', () => {
+    e.text = n.innerText.replace(/\n$/, '');
+    draw(); buildProps(); buildList();
+  }, { once:true });
+}
+
+/* ---------- keyboard ---------- */
+window.addEventListener('keydown', ev => {
+  if (RENDER) return;
+  if (ev.key === 'Escape') { closeGallery(); closeHelp(); closeFntMgr(); closeCtx(); closeColorPop(); closeLsPop(); return; }
+  const t = ev.target.tagName;
+  const editing = ev.target.isContentEditable || t === 'INPUT' || t === 'TEXTAREA' || t === 'SELECT';
+  /* letter shortcuts go by the PHYSICAL key (ev.code): on the Georgian layout ev.key
+     returns 'ზ'/'ყ'/'ც'/'ვ', never 'z' — Ctrl+Z/Y/C/V must work on every layout */
+  const hk = /^Key[A-Z]$/.test(ev.code) ? ev.code.slice(3).toLowerCase() : ev.key.toLowerCase();
+  if (hk === 'z' && (ev.ctrlKey || ev.metaKey) && !editing) { ev.preventDefault(); if (ev.shiftKey) redo(); else undo(); return; }
+  if (hk === 'y' && (ev.ctrlKey || ev.metaKey) && !editing) { ev.preventDefault(); redo(); return; }
+  /* internal clipboard — while editing text the native copy/paste stays untouched */
+  if (hk === 'c' && (ev.ctrlKey || ev.metaKey) && !editing) { if (copySel()) ev.preventDefault(); return; }
+  if (hk === 'v' && (ev.ctrlKey || ev.metaKey) && !editing) { if (pasteClip()) ev.preventDefault(); return; }
+  if (editing || !selId) return;
+  const e = sel(); if (!e) return;
+  if (ev.key === 'Enter' && e.type === 'text') { ev.preventDefault(); startEdit(e.id); return; }
+  const step = ev.shiftKey ? 10 : 1;
+  if (ev.key === 'ArrowLeft')  { snap(); e.x -= step; }
+  else if (ev.key === 'ArrowRight') { snap(); e.x += step; }
+  else if (ev.key === 'ArrowUp')    { snap(); e.y -= step; }
+  else if (ev.key === 'ArrowDown')  { snap(); e.y += step; }
+  else if (ev.key === 'Delete' || ev.key === 'Backspace') { snap(); removeSel(); return; }
+  else return;
+  ev.preventDefault();
+  draw(); buildProps();
+});
+
+/* ---------- element ops ---------- */
+function uid() { return 'x' + Math.random().toString(36).slice(2, 8); }
+function addEl(type, src) {
+  snap();
+  const base = { id:uid(), type, x:200, y:600, w:600, radius:0, rot:0 };
+  let e;
+  if (type === 'text') e = { ...base, name:'Tekst', text:'Nowy tekst', font:'DM Sans', weight:400, size:24, ls:0, lh:1.4, color:INK, align:'center', italic:false };
+  else if (type === 'rule') e = { ...base, name:'Linia', w:840, x:80, thick:1, color:HAIR, lstyle:'solid', cap:'butt' };
+  else if (type === 'box') e = { ...base, name:'Kształt', w:600, h:300, shape:'rect', color:'#efe3d9' };
+  else e = { ...base, name:'Obraz', w:700, x:150, src };
+  doc.els.push(e);
+  selId = e.id;
+  draw(); buildList(); buildProps();
+}
+function removeSel() {
+  if (!selId) return;
+  closeColorPop();
+  closeLsPop();
+  doc.els = doc.els.filter(e => e.id !== selId);
+  selId = null;
+  draw(); buildList(); buildProps();
+}
+
+/* ---------- template gallery (modal window) ---------- */
+const tplModal = document.getElementById('tplModal');
+const GAL_ICO = {
+  exp: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAACXBIWXMAAAsTAAALEwEAmpwYAAAA20lEQVR4nNWVSwrCMBBAs9Kdrgx4FcUDeDF/B9ADdVdcqeBe0Qu46upJbAakNk3apqIPAiHMzEuaNFHqmwB9YAPc8ZMBO2BQR2CK1+UI6FCBzHziiRNOtSSSFRoHjICD7Z+BcVSByvvarkBWMowqKJFsVQTBFTdZDMEcuLgMrQUufl8AJKZ1KXjxXwLyz7K3Z13QdiyJIUjtsPxI7/00hkAXiuO64BrvAZ+S0tuz1SaTSx626U5OkY8QgTw4U2+1AsDM5t6qgla0Z1El6AFrM4sGhU3O0tRwCrrgCbGgJ6tON3rFAAAAAElFTkSuQmCC',
+  del: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAACXBIWXMAAAsTAAALEwEAmpwYAAAAiUlEQVR4nO2Wyw2AIBAFOWlPEtvz1xa1SBtjQLj4iXyMGsPccJ87CZAsQrwJUAMToNljvo1AlSOYuGbIEWjXpDmoSVebcwSW1Po2rLgP9bzA4xMiEkL/+6eA9XzU2foOgSUmUwSWskXPXdMQPiXQLisjmrfBw8eMQNLpQgSVG+ZzRGOT7bMeAKks5dHu3JyNFysAAAAASUVORK5CYII='
+};
+/* scaled live preview of a template doc, rendered with the same elNode() as the canvas */
+function thumbNode(d, boxW, boxH) {
+  const k = Math.min(boxW / d.w, boxH / d.h);
+  const outer = document.createElement('div');
+  outer.style.cssText = 'flex:0 0 auto;overflow:hidden;box-shadow:0 0 0 1px #000;width:' + (d.w * k) + 'px;height:' + (d.h * k) + 'px;';
+  const st = document.createElement('div');
+  st.style.cssText = 'position:relative;overflow:hidden;transform-origin:top left;width:' + d.w + 'px;height:' + d.h + 'px;background:' + d.bg + ';transform:scale(' + k + ');';
+  for (const e of d.els) st.appendChild(elNode(e));
+  outer.appendChild(st);
+  return outer;
+}
+function miniBtn(src, title, fn) {
+  const b = document.createElement('button');
+  b.className = 'mini'; b.title = title;
+  const i = document.createElement('img'); i.src = src; b.appendChild(i);
+  b.onclick = fn;
+  return b;
+}
+function loadDoc(d) {
+  snap();
+  doc = d; selId = null;
+  draw(); buildList(); buildProps(); applyZoom();
+}
+function buildGallery() {
+  const g = document.getElementById('tplGrid');
+  g.innerHTML = '';
+  const saved = allDocs();
+  const items = [
+    ...Object.keys(BUILTIN).map(k => ({ key:k, builtin:true, get:() => BUILTIN[k]() })),
+    ...Object.keys(saved).map(k => ({ key:k, builtin:false, get:() => normalize(JSON.parse(JSON.stringify(saved[k]))) }))
+  ];
+  for (const it of items) {
+    const c = document.createElement('div'); c.className = 'tcard';
+    const tb = document.createElement('div'); tb.className = 'thumbBox';
+    tb.appendChild(thumbNode(it.get(), 176, 240));
+    const meta = document.createElement('div'); meta.className = 'meta';
+    const nm = document.createElement('span'); nm.className = 'name'; nm.textContent = it.key; nm.title = it.key;
+    meta.appendChild(nm);
+    if (it.builtin) { const b = document.createElement('span'); b.className = 'badge'; b.textContent = 'wbudowany'; meta.appendChild(b); }
+    meta.appendChild(miniBtn(GAL_ICO.exp, 'Eksport .json', ev => {
+      ev.stopPropagation();
+      download(new Blob([JSON.stringify(it.get(), null, 2)], { type:'application/json' }),
+        (it.key.replace(/[^\w\-]+/g, '-').toLowerCase() || 'szablon') + '.json');
+    }));
+    if (!it.builtin) meta.appendChild(miniBtn(GAL_ICO.del, 'Usuń szablon', ev => {
+      ev.stopPropagation();
+      askConfirm(ev.currentTarget, 'Usunąć szablon "' + it.key + '"?', 'Usuń', () => {
+        const ds = allDocs(); delete ds[it.key]; saveDocs(ds);
+        buildGallery(); toast('Usunięto: ' + it.key);
+      });
+    }));
+    c.appendChild(tb); c.appendChild(meta);
+    c.onclick = () => { loadDoc(it.get()); closeGallery(); toast('Wczytano: ' + doc.name); };
+    g.appendChild(c);
+  }
+}
+function openGallery() { buildGallery(); tplModal.classList.add('open'); }
+function closeGallery() { cancelTplAsk(); tplModal.classList.remove('open'); }
+tplModal.addEventListener('mousedown', ev => { if (ev.target === tplModal) closeGallery(); });
+document.getElementById('tplClose').onclick = closeGallery;
+/* save-as: name asked in an IN-WINDOW form, like the font manager — no browser prompt() */
+const tplAsk = document.getElementById('tplAsk');
+const tplName = document.getElementById('tplName');
+function cancelTplAsk() { tplAsk.classList.remove('open'); }
+function tplHintUpd() {
+  const n = tplName.value.trim(), h = document.getElementById('tplHint'), ok = document.getElementById('tplOk');
+  ok.textContent = 'Zapisz';
+  if (!n) { h.textContent = 'Podaj nazwę szablonu.'; h.classList.remove('warn'); ok.disabled = true; }
+  else if (BUILTIN[n]) { h.textContent = `„${n}" to szablon wbudowany — zmień nazwę.`; h.classList.add('warn'); ok.disabled = true; }
+  else if (allDocs()[n]) { h.textContent = `Szablon „${n}" już istnieje — zostanie zastąpiony.`; h.classList.remove('warn'); ok.disabled = false; ok.textContent = 'Zastąp'; }
+  else { h.textContent = ''; h.classList.remove('warn'); ok.disabled = false; }
+}
+function commitTpl() {
+  const n = tplName.value.trim();
+  if (!n || BUILTIN[n]) return;
+  doc.name = n;
+  const ds = allDocs(); ds[n] = doc; saveDocs(ds);
+  persist(); cancelTplAsk(); buildGallery();
+  toast('Zapisano szablon: ' + n);
+}
+document.getElementById('tplSaveAs').onclick = () => {
+  tplName.value = doc.name || '';
+  tplAsk.classList.add('open');
+  tplHintUpd();
+  tplName.focus(); tplName.select();
+};
+document.getElementById('tplOk').onclick = commitTpl;
+document.getElementById('tplCancel').onclick = cancelTplAsk;
+tplName.oninput = tplHintUpd;
+tplName.addEventListener('keydown', ev => {
+  if (ev.key === 'Enter') commitTpl();
+  if (ev.key === 'Escape') { ev.stopPropagation(); cancelTplAsk(); }   // Esc = only the form, not the gallery
+});
+document.getElementById('tplImport').onclick = () => document.getElementById('jsonPick').click();
+document.getElementById('jsonPick').onchange = ev => {
+  const f = ev.target.files[0]; if (!f) return;
+  const r = new FileReader();
+  r.onload = () => {
+    try { loadDoc(normalize(JSON.parse(r.result))); closeGallery(); toast('Zaimportowano'); }
+    catch (e) { toast('Błędny plik JSON'); }
+  };
+  r.readAsText(f);
+  ev.target.value = '';
+};
+
+/* ---------- help (mini window) ---------- */
+const helpModal = document.getElementById('helpModal');
+function openHelp() { helpModal.classList.add('open'); }
+function closeHelp() { helpModal.classList.remove('open'); }
+document.getElementById('helpBtn').onclick = openHelp;
+document.getElementById('helpClose').onclick = closeHelp;
+document.getElementById('helpDone').onclick = closeHelp;
+helpModal.addEventListener('mousedown', ev => { if (ev.target === helpModal) closeHelp(); });
+document.querySelectorAll('#helpNav .hnav').forEach(b => b.onclick = () => {
+  document.querySelectorAll('#helpNav .hnav').forEach(x => x.classList.toggle('on', x === b));
+  document.querySelectorAll('.hpane').forEach(p => p.style.display = p.dataset.pane === b.dataset.tab ? '' : 'none');
+});
+
+/* ---------- własne fonty: okno zarządzania ---------- */
+const fntModal = document.getElementById('fntModal');
+const fontPick = document.getElementById('fontPick');
+function openFntMgr() { buildFntList(); fntModal.classList.add('open'); }
+function closeFntMgr() { cancelFntAsk(); fntModal.classList.remove('open'); }
+fntModal.addEventListener('mousedown', ev => { if (ev.target === fntModal) closeFntMgr(); });
+document.getElementById('fntClose').onclick = closeFntMgr;
+document.getElementById('fntAdd').onclick = () => fontPick.click();
+document.querySelector('#fntClose img').src = document.querySelector('#tplClose img').src;
+document.querySelector('#fntAdd img').src = document.querySelector('#tplImport img').src;
+
+function buildFntList() {
+  const uf = userFonts(), names = Object.keys(uf);
+  const list = document.getElementById('fntList');
+  if (!names.length) {
+    list.innerHTML = `<div id="fntEmpty">Brak własnych fontów. „Dodaj plik fontu…" wczyta plik z dysku — font pojawi się w grupie „Własne" na liście fontów.</div>`;
+    return;
+  }
+  list.innerHTML = names.map(n =>
+    `<div class="frow"><span class="fname" style="font-family:'${n}'">${n}</span>` +
+    `<span class="badge">${Object.keys(uf[n].faces).join(' · ')}</span>` +
+    `<button class="fdel" data-n="${n}">Usuń</button></div>`).join('');
+  list.querySelectorAll('.fdel').forEach(b => b.onclick = () => {
+    const n = b.dataset.n;
+    askConfirm(b, `Usunąć font "${n}"?`, 'Usuń', () => {
+      const uf2 = userFonts(); delete uf2[n];
+      localStorage.setItem(LS_FONTS, JSON.stringify(uf2));
+      syncUserFonts(); buildFntList(); buildProps();
+      toast(`Font "${n}" usunięty`);
+    });
+  });
+}
+
+/* name form inside the window — no browser prompt() (Lasha's ask); the duplicate-name
+   question moved into a live hint under the field, so no confirm() either */
+let pendFont = null;
+const fntName = document.getElementById('fntName');
+function cleanFontName() { return fntName.value.replace(/['"<>\\]/g, '').trim(); }
+function cancelFntAsk() { pendFont = null; document.getElementById('fntAsk').classList.remove('open'); }
+function fntHintUpd() {
+  const n = cleanFontName(), h = document.getElementById('fntHint'), ok = document.getElementById('fntOk');
+  const uf = userFonts();
+  ok.textContent = 'Dodaj font';
+  if (!n) { h.textContent = 'Podaj nazwę fontu.'; h.classList.remove('warn'); ok.disabled = true; }
+  else if (FONTS[n] && !FONTS[n].user) { h.textContent = `„${n}" już jest wbudowany — zmień nazwę.`; h.classList.add('warn'); ok.disabled = true; }
+  else if (uf[n]) {
+    h.textContent = uf[n].faces['700']
+      ? `Font „${n}" już istnieje — ten plik zastąpi jego pogrubienie (700).`
+      : `Font „${n}" już istnieje — ten plik zostanie dodany jako pogrubienie (700).`;
+    h.classList.remove('warn'); ok.disabled = false; ok.textContent = 'Dodaj jako 700';
+  }
+  else { h.textContent = ''; h.classList.remove('warn'); ok.disabled = false; }
+}
+function commitFont() {
+  const n = cleanFontName();
+  if (!n || !pendFont || (FONTS[n] && !FONTS[n].user)) return;
+  const uf = userFonts();
+  const w = uf[n] ? '700' : '400';
+  if (!uf[n]) uf[n] = { faces: {} };
+  uf[n].faces[w] = pendFont;
+  try { localStorage.setItem(LS_FONTS, JSON.stringify(uf)); }
+  catch (err) { toast('Brak miejsca w przeglądarce — usuń któryś własny font'); return; }
+  cancelFntAsk();
+  syncUserFonts(); buildFntList(); buildProps();
+  toast(`Font "${n}" dodany (${w})`);
+}
+document.getElementById('fntOk').onclick = commitFont;
+document.getElementById('fntCancel').onclick = cancelFntAsk;
+fntName.oninput = fntHintUpd;
+fntName.addEventListener('keydown', ev => {
+  if (ev.key === 'Enter') commitFont();
+  if (ev.key === 'Escape') { ev.stopPropagation(); cancelFntAsk(); }   // Esc = only the form, not the window
+});
+
+fontPick.onchange = async ev => {
+  const f = ev.target.files[0]; ev.target.value = '';
+  if (!f) return;
+  if (f.size > 5 * 1024 * 1024) { toast('Plik za duży (max 5 MB)'); return; }
+  const data = await new Promise((res, rej) => {
+    const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(f);
+  });
+  /* probe before saving — catches corrupt / non-font files */
+  try { await new FontFace('__probe', `url(${data})`).load(); }
+  catch (err) { toast('Nie udało się odczytać — to nie jest plik fontu?'); return; }
+  pendFont = data;
+  fntName.value = f.name.replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ').trim();
+  document.getElementById('fntAsk').classList.add('open');
+  fntHintUpd();
+  fntName.focus(); fntName.select();
+};
+
+/* ---------- toolbar: add elements + collapse ---------- */
+document.querySelectorAll('[data-add]').forEach(b => b.onclick = () => {
+  const t = b.dataset.add;
+  if (t === 'img') document.getElementById('filePick').click();
+  else addEl(t);
+});
+const LS_TB = 'sallora-studio-toolbar';
+const tb = document.getElementById('toolbar');
+if (localStorage.getItem(LS_TB) === '1') tb.classList.add('open');
+document.getElementById('tbToggle').onclick = () => {
+  tb.classList.toggle('open');
+  localStorage.setItem(LS_TB, tb.classList.contains('open') ? '1' : '0');
+};
+
+/* ---------- top bar: gallery + undo ---------- */
+document.getElementById('tplMenuBtn').onclick = openGallery;
+document.getElementById('undoBtn').onclick = () => undo();
+document.getElementById('redoBtn').onclick = () => redo();
+const cfm = document.getElementById('cfm');
+let cfmAct = null;
+function askConfirm(btn, msg, yesLabel, act) {
+  cfmAct = act;
+  document.getElementById('cfmMsg').textContent = msg;
+  document.getElementById('cfmOk').textContent = yesLabel;
+  cfm.style.display = 'block';
+  const r = btn.getBoundingClientRect();
+  cfm.style.left = Math.max(8, Math.min(r.left, innerWidth - cfm.offsetWidth - 8)) + 'px';
+  cfm.style.top = (r.bottom + 6) + 'px';
+}
+function closeCfm() { cfm.style.display = 'none'; cfmAct = null; }
+document.getElementById('cfmNo').onclick = closeCfm;
+document.getElementById('cfmOk').onclick = () => { const a = cfmAct; closeCfm(); if (a) a(); };
+window.addEventListener('mousedown', ev => { if (cfm.style.display === 'block' && !cfm.contains(ev.target)) closeCfm(); }, true);
+/* capture + stopPropagation: with the confirm open, Esc closes ONLY it, not the modal underneath */
+window.addEventListener('keydown', ev => {
+  if (ev.key === 'Escape' && cfm.style.display === 'block') { closeCfm(); ev.stopPropagation(); }
+}, true);
+window.addEventListener('scroll', closeCfm, true);
+window.addEventListener('resize', closeCfm);
+document.getElementById('newBtn').onclick = ev => {
+  askConfirm(ev.currentTarget, 'Nowy projekt — wszystkie elementy zostaną usunięte, zostanie tylko białe tło.', 'Tak, nowy', () => {
+    loadDoc({ name: 'Nowy', w: doc.w, h: doc.h, bg: '#ffffff', els: [] });
+    toast('Nowy projekt (Ctrl+Z cofa)');
+  });
+};
+document.getElementById('resetBtn').onclick = ev => {
+  askConfirm(ev.currentTarget, 'Reset — bieżący projekt zostanie zastąpiony szablonem startowym.', 'Tak, resetuj', () => {
+    loadDoc(baselineDoc());
+    toast('Przywrócono szablon startowy (Ctrl+Z cofa)');
+  });
+};
+document.getElementById('filePick').onchange = ev => {
+  const f = ev.target.files[0]; if (!f) return;
+  const r = new FileReader();
+  r.onload = () => {
+    const e = sel();
+    if (e && e.type === 'img') { snap(); e.src = r.result; draw(); toast('Podmieniono obraz'); }
+    else addEl('img', r.result);
+  };
+  r.readAsDataURL(f);
+  ev.target.value = '';
+};
+/* click on empty canvas = deselect */
+document.getElementById('canvasArea').addEventListener('mousedown', ev => {
+  if (['canvasArea','scaler','stage'].includes(ev.target.id) && selId) {
+    selId = null; draw(); buildList(); buildProps();
+  }
+});
+/* drag & drop an image straight onto the canvas */
+document.getElementById('canvasArea').addEventListener('dragover', e => e.preventDefault());
+document.getElementById('canvasArea').addEventListener('drop', ev => {
+  ev.preventDefault();
+  const f = [...ev.dataTransfer.files].find(f => f.type.startsWith('image/'));
+  if (!f) return;
+  const r = new FileReader();
+  r.onload = () => {
+    const e = sel();
+    if (e && e.type === 'img' && confirm('Podmienić zaznaczony obraz? (Anuluj = dodaj nowy)')) {
+      snap(); e.src = r.result; draw();
+    } else addEl('img', r.result);
+  };
+  r.readAsDataURL(f);
+});
+
+/* ---------- panel: element list ---------- */
+/* The list is shown FLIPPED: top of the list = front-most layer (like Canva/PS).
+   doc.els stays in render order (last = on top); view index vi maps via reverse(). */
+const TYPE_LABEL = { text:'Tekst', img:'Obraz', rule:'Linia', box:'Kształt' };
+const TYPE_TAG   = { text:'TXT',   img:'IMG',   rule:'LIN',   box:'KSZT' };
+const ICON_PIPETTE = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAACXBIWXMAAAsTAAALEwEAmpwYAAABCklEQVR4nNWUQQ6CMBBFYeEFSCRu4AacQb2ZchDEFXdRV5JI4l7cqRu3PlMzRFJBrVQTf9JAC7zP/EzrOP8gwANS4ASUwBTo2YL7QM6jJrbhORAAI5nvTGE9IAb2EkWqwX15LwQuwBFwTQzihhh0eL2ixLSCUj4cyl+uZDTB1dUzgbsSiyo9bHiuw2+mphVkAjjrAGDRFe4Dm6bcNYPZJ/A+sBbAFiiedM7BtHN8PVsZRS0uBR/LvOwEd+7rlcFnu1eLpQAGLXFlsqF2Cv7W+fMmvKjWjfRtuPck87xTnwto/jW4kvSwUmAdrlT1mdyHtuFRS1/nneHaUVxJxZUYHbkvDJZiElkB/lJX3dPxxGNVvJwAAAAASUVORK5CYII=';   // lucide pipette
+/* pipeta: Chrome's EyeDropper API — picks a colour from anywhere on screen (even outside
+   the window). Not in Firefox/Safari; catch() swallows the user's Esc-cancel. */
+function eyedrop(apply) {
+  if (!window.EyeDropper) { toast('Pipeta działa tylko w Chrome/Edge'); return; }
+  new EyeDropper().open().then(r => apply(r.sRGBHex.toLowerCase())).catch(() => {});
+}
+const ICON_LINK = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAACXBIWXMAAAsTAAALEwEAmpwYAAAA2klEQVR4nO2SOw7CMBBEXUGVQFrCnRLgGEAuGYlPgaDjc4xA/9BKRizBIYkSOr/SXs3Ys2OMx9MrwBDIgD3w4E3umM3VvczugLVoVIlPgRNu8hoDzRGIXS9/iZ+BBAha/DwAUuCiTAZ6IFPi46bCZYAIuFqtlb6QzIXEdASYWa2tPrzbw6BhzpX7AUJ7XvzLYOQyeEWU9hDRwhWR9Bfbgqjjkm9Wa1muqVQL2wJZVNhCWHKfK/HDR03tUKxMfuZcsx8RnxgX4ir9lfzU4psYFMBGYvl6ucdjuvIErpgVn8GrgrsAAAAASUVORK5CYII=';       // lucide link-2: proportions ON
+const ICON_LINK_OFF = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAACXBIWXMAAAsTAAALEwEAmpwYAAABFklEQVR4nO2WTUoDQRCFsxBdKZowQogbTzQG1BOIIJgcIJcTDP4FwUEDUcQTiCCIs/2kmRcoJx0n3Ulc5S2rquvrfl3QXav9h4A+cA/sLgswoNDTUiBAAjwKMgKaK4hXwAbQA75lVz7NLg3GWB/AFXDiekxrvgdkTGrkg5QAVrcT9dp5ZhqmwP6sFw/UgUPg1UDWbEHXNNqOnS4K0Jvqz2ziTsHUsygJhByp9tIGvxTcnMHnvMKuhureYwF/nkQ2OX36LDqoOH5SZRdwrPyFDXYUfAZ25oEAQ+VOy2P6oMQL0Aa2YiCy9frXmCrRMpCy+jF2+Xa2DpwDN+bivYBoSKhYQULknls9u06DoMWBEPeB8A7GwvUDLyDdSf9WEYEAAAAASUVORK5CYII=';   // lucide link-2-off: proportions OFF
+const TYPE_ICON = {};   // reuse the left toolbar's icon data URIs — never duplicate base64
+document.querySelectorAll('#toolbar .tool[data-add]').forEach(b => {
+  TYPE_ICON[b.dataset.add] = b.querySelector('img').src;
+});
+let dragVi = null;      // view index of the card being dragged
+function clearIns() { document.querySelectorAll('#list .item').forEach(x => x.classList.remove('ins-top','ins-bottom')); }
+function dropView(fromVi, slot) {   // slot = insertion index in view space (0 = very front)
+  const view = doc.els.slice().reverse();
+  if (slot > fromVi) slot--;
+  if (slot === fromVi) { dragVi = null; clearIns(); buildList(); return; }
+  snap();
+  const [m] = view.splice(fromVi, 1);
+  view.splice(slot, 0, m);
+  doc.els = view.reverse();
+  dragVi = null;
+  draw(); buildList();
+}
+/* cards are rebuilt on every click, so native dblclick never fires here either (gotcha:
+   the browser's click counter resets when the node is replaced) — manual detection again */
+let cardDown = { id:null, t:0 };
+let lastListSel = null;
+/* keep the selected element's card in view: centre it unless it's already fully visible */
+function revealSel(l) {
+  const c = l.querySelector('.item.on');
+  if (!c) return;
+  const lr = l.getBoundingClientRect(), cr = c.getBoundingClientRect();
+  if (cr.top >= lr.top && cr.bottom <= lr.bottom) return;
+  l.scrollTop += (cr.top + cr.bottom) / 2 - (lr.top + lr.bottom) / 2;
+}
+function buildList() {
+  const l = document.getElementById('list');
+  l.innerHTML = '';
+  if (!doc.els.length) { l.innerHTML = '<div class="empty">Pusto — dodaj element z lewego paska.</div>'; return; }
+  doc.els.slice().reverse().forEach((e, vi) => {
+    const d = document.createElement('div');
+    d.className = 'item' + (e.id === selId ? ' on' : '');
+    d.innerHTML = '<span class="ic">' + (TYPE_ICON[e.type] ? '<img src="' + TYPE_ICON[e.type] + '">' : '') + '</span>'
+      + '<span class="t"></span><span class="ty"></span>';
+    d.querySelector('.t').textContent = e.name || TYPE_LABEL[e.type] || e.type;
+    d.querySelector('.ty').textContent = TYPE_TAG[e.type] || e.type;
+    d.onclick = ev => {
+      if (cardDown.id === e.id && ev.timeStamp - cardDown.t < 400) {
+        cardDown.id = null;
+        zoomToEl(e.id);           // double-press on a card = zoom to it on canvas
+        return;
+      }
+      cardDown = { id: e.id, t: ev.timeStamp };
+      selId = e.id; draw(); buildList(); buildProps();
+    };
+    d.addEventListener('contextmenu', ev => openCtx(ev, e.id));
+    /* drag card up/down to reorder layers */
+    d.draggable = true;
+    d.addEventListener('dragstart', ev => {
+      dragVi = vi; d.classList.add('drag');
+      ev.dataTransfer.effectAllowed = 'move';
+      try { ev.dataTransfer.setData('text/plain', e.id); } catch (_) {}
+    });
+    d.addEventListener('dragend', () => { dragVi = null; clearIns(); d.classList.remove('drag'); });
+    d.addEventListener('dragover', ev => {
+      if (dragVi === null) return;
+      ev.preventDefault(); ev.dataTransfer.dropEffect = 'move';
+      clearIns();
+      if (vi === dragVi) return;
+      const r = d.getBoundingClientRect();
+      d.classList.add(ev.clientY < r.top + r.height / 2 ? 'ins-top' : 'ins-bottom');
+    });
+    d.addEventListener('drop', ev => {
+      if (dragVi === null) return;
+      ev.preventDefault();
+      const r = d.getBoundingClientRect();
+      dropView(dragVi, vi + (ev.clientY < r.top + r.height / 2 ? 0 : 1));
+    });
+    l.appendChild(d);
+  });
+  /* selection changed → make sure its card is on screen */
+  if (selId !== lastListSel) { lastListSel = selId; revealSel(l); }
+}
+/* drop below the last card = send to the very back */
+document.getElementById('list').addEventListener('dragover', ev => {
+  if (dragVi !== null) { ev.preventDefault(); ev.dataTransfer.dropEffect = 'move'; }
+});
+document.getElementById('list').addEventListener('drop', ev => {
+  if (dragVi !== null) { ev.preventDefault(); dropView(dragVi, doc.els.length); }
+});
+function move(dir) {
+  const i = doc.els.findIndex(e => e.id === selId);
+  if (i < 0) return;
+  const j = i + dir;
+  if (j < 0 || j >= doc.els.length) return;
+  snap();
+  [doc.els[i], doc.els[j]] = [doc.els[j], doc.els[i]];
+  draw(); buildList();
+}
+function dupSel() {
+  const e = sel(); if (!e) return;
+  snap();
+  const c = JSON.parse(JSON.stringify(e));
+  c.id = uid(); c.name = (e.name || 'Element') + ' 2'; c.x += 20; c.y += 20;
+  doc.els.push(c); selId = c.id;
+  draw(); buildList(); buildProps();
+}
+
+/* ---------- copy / paste: internal clipboard (Ctrl+C / Ctrl+V) ----------
+   Elements are internal objects, so the clipboard is a variable, not the system one;
+   each following paste lands 20px further so copies never stack invisibly. */
+let clip = null, clipPastes = 0;
+function copySel() {
+  const e = sel(); if (!e) return false;
+  clip = JSON.parse(JSON.stringify(e)); clipPastes = 0;
+  toast('Skopiowano: ' + (e.name || TYPE_LABEL[e.type] || ''));
+  return true;
+}
+function pasteClip() {
+  if (!clip) return false;
+  snap();
+  const c = JSON.parse(JSON.stringify(clip));
+  c.id = uid();
+  clipPastes++;
+  c.x = clip.x + 20 * clipPastes;
+  c.y = clip.y + 20 * clipPastes;
+  doc.els.push(c);
+  selId = c.id;
+  draw(); buildList(); buildProps();
+  return true;
+}
+
+/* ---------- context menu: right-click an element (list card or canvas) ---------- */
+const ctxMenu = document.getElementById('ctx');
+/* edit icon reused from the Tekst tool; the other ctx icons are inline in the markup */
+ctxMenu.querySelector('[data-act="edit"] img').src = document.querySelector('#toolbar .tool[data-add="text"] img').src;
+/* Pomoc "Znaczniki w tekście" row reuses the Tekst tool icon (guard: RENDER mode removes the modal) */
+const hlpRichIco = document.getElementById('hlpRichIco');
+if (hlpRichIco) hlpRichIco.src = document.querySelector('#toolbar .tool[data-add="text"] img').src;
+function openCtx(ev, id) {
+  ev.preventDefault(); ev.stopPropagation();
+  if (selId !== id) { selId = id; draw(); buildList(); buildProps(); }
+  const t = el(id);
+  ctxMenu.querySelector('[data-act="edit"]').style.display = t && t.type === 'text' ? 'flex' : 'none';
+  const li = doc.els.findIndex(x => x.id === id);
+  ctxMenu.querySelector('[data-act="up"]').classList.toggle('dis', li === doc.els.length - 1);   /* last in array = top of list */
+  ctxMenu.querySelector('[data-act="down"]').classList.toggle('dis', li === 0);
+  ctxMenu.style.display = 'block';
+  const r = ctxMenu.getBoundingClientRect();
+  ctxMenu.style.left = Math.min(ev.clientX, innerWidth  - r.width  - 6) + 'px';
+  ctxMenu.style.top  = Math.min(ev.clientY, innerHeight - r.height - 6) + 'px';
+}
+function closeCtx() { ctxMenu.style.display = 'none'; }
+ctxMenu.querySelector('[data-act="edit"]').onclick = () => { closeCtx(); startEdit(selId); };
+ctxMenu.querySelector('[data-act="dup"]').onclick = () => { closeCtx(); dupSel(); };
+ctxMenu.querySelector('[data-act="up"]').onclick   = () => { closeCtx(); move(1); };   // later in array = on top
+ctxMenu.querySelector('[data-act="down"]').onclick = () => { closeCtx(); move(-1); };
+document.getElementById('alignH').onclick = () => {
+  const e = sel(); if (!e) return;
+  snap(); e.x = Math.round((doc.w - e.w) / 2); draw(); buildProps();
+};
+document.getElementById('alignV').onclick = () => {
+  const e = sel(); if (!e) return;
+  const h = node(e.id).offsetHeight;
+  snap(); e.y = Math.round((doc.h - h) / 2); draw(); buildProps();
+};
+ctxMenu.querySelector('[data-act="del"]').onclick = () => { closeCtx(); snap(); removeSel(); };
+window.addEventListener('mousedown', ev => { if (!ctxMenu.contains(ev.target)) closeCtx(); });
+window.addEventListener('scroll', closeCtx, true);
+window.addEventListener('resize', closeCtx);
+/* browser's own right-click menu OFF everywhere; native menu stays only in text entry (copy/paste) */
+document.addEventListener('contextmenu', ev => {
+  if (RENDER) return;
+  const t = ev.target;
+  if (t.closest && t.closest('input, textarea, [contenteditable="true"]')) return;
+  ev.preventDefault();
+});
+
+/* ---------- Styl linii dropdown: pattern previews in the list ---------- */
+const LSTYLES = [
+  ['solid',   'Ciągła',        '',          ''],
+  ['dash',    'Kreskowana',    '6 4',       'butt'],
+  ['dot',     'Kropkowana',    '0.1 4.5',   'round'],
+  ['dashdot', 'Kreska-kropka', '7 5 0.1 5', 'round']
+];
+const lsSvg = o => `<svg viewBox="0 0 44 8" preserveAspectRatio="none"><line x1="2" y1="4" x2="42" y2="4" stroke="currentColor" stroke-width="2.4"` +
+  (o[2] ? ` stroke-dasharray="${o[2]}" stroke-linecap="${o[3]}"` : '') + `/></svg>`;
+const lspop = document.getElementById('lspop');
+function openLsPop(btn, e) {
+  lspop.innerHTML = LSTYLES.map(o =>
+    `<button class="lsopt${o[0] === (e.lstyle || 'solid') ? ' on' : ''}" data-ls="${o[0]}">${lsSvg(o)}<span>${o[1]}</span></button>`).join('');
+  lspop.style.display = 'block';
+  const r = btn.getBoundingClientRect();
+  let x = Math.min(r.left, innerWidth - lspop.offsetWidth - 8);
+  let y = r.bottom + 4;
+  if (y + lspop.offsetHeight > innerHeight - 8) y = r.top - lspop.offsetHeight - 4;
+  lspop.style.left = x + 'px'; lspop.style.top = y + 'px';
+  lspop.querySelectorAll('.lsopt').forEach(op => op.onclick = () => {
+    const v = op.dataset.ls;
+    closeLsPop();
+    if ((e.lstyle || 'solid') === v) return;
+    snap();
+    e.lstyle = v;
+    if (v !== 'solid') { if (e.dash == null) e.dash = 12; if (e.gap == null) e.gap = 8; }
+    draw(); buildProps();
+  });
+}
+function closeLsPop() { lspop.style.display = 'none'; lspop.innerHTML = ''; }
+window.addEventListener('mousedown', ev => {
+  if (lspop.style.display === 'block' && !lspop.contains(ev.target) && !ev.target.closest('.lssel')) closeLsPop();
+});
+window.addEventListener('scroll', closeLsPop, true);
+window.addEventListener('resize', closeLsPop);
+
+/* ---------- panel: properties ---------- */
+/* Construct-3-style grid: collapsible groups of name|value rows */
+const propOpen = {};   // group title -> open? (default open, session-only)
+/* real/logical bounds per numeric prop — the FIELD stops at the limit too: scrub
+   clamps live, typing clamps the doc at once and the box on blur (onchange).
+   Zaokrągl. max = geometry: past half the shorter side nothing rounds further.
+   x/y/rot/shx/shy/ls stay unbounded — negatives/overshoot are legitimate there. */
+function limOf(k, e) {
+  if (k === 'radius') {
+    let hh = e.h;
+    if (hh == null) { const nn = node(e.id); hh = nn ? nn.offsetHeight : e.w; }   // img auto: rendered height
+    return { min: 0, max: Math.max(0, Math.round(Math.min(e.w || 0, hh || 0) / 2)) };
+  }
+  return {
+    op:    { min: 0, max: 100 },  sho:    { min: 0, max: 100 },
+    fx:    { min: 0, max: 100 },  fy:     { min: 0, max: 100 },
+    inner: { min: 5, max: 95 },   points: { min: 3, max: 60 },
+    size:  { min: 1, max: 2000 }, lh:     { min: 0.1, max: 10 },
+    w:     { min: 1, max: 20000 }, h:     { min: 1, max: 20000 },
+    thick: { min: 1, max: 500 },  shb:    { min: 0, max: 500 },
+    dash:  { min: 1, max: 1000 }, gap:    { min: 1, max: 1000 },
+    olw:   { min: 0, max: 50 }
+  }[k] || null;
+}
+function buildProps() {
+  const p = document.getElementById('props');
+  const e = sel();
+
+  const row = (lab, val) => `<div class="prow"><label>${lab}</label><span class="val">${val}</span></div>`;
+  const grp = (key, head, body) => `<div class="grp${propOpen[key] === false ? ' closed' : ''}" data-grp="${key}">` +
+    `<div class="grpHead"><span class="ar">▼</span>${head}</div><div class="grpBody">${body}</div></div>`;
+  const wireGroups = () => p.querySelectorAll('.grpHead').forEach(gh => gh.onclick = () => {
+    const g = gh.parentElement;
+    propOpen[g.dataset.grp] = g.classList.contains('closed');
+    g.classList.toggle('closed');
+  });
+  /* label scrubbing: drag a numeric field's label left/right to change the value (Shift = ×10) */
+  const wireScrub = () => p.querySelectorAll('.prow > label').forEach(lb => {
+    const val = lb.nextElementSibling;
+    const inp = val && val.querySelector('input[type=number]');
+    if (!inp) return;
+    lb.classList.add('scrub');
+    lb.onmousedown = ev => {
+      if (ev.button !== 0) return;
+      ev.preventDefault();
+      const step = parseFloat(inp.step) || 1;
+      const dec = (String(step).split('.')[1] || '').length;
+      const x0 = ev.clientX, v0 = parseFloat(inp.value) || 0;
+      let snapped = false;                 // one undo step per drag, none on a plain click
+      const mm = e2 => {
+        const dx = e2.clientX - x0;
+        if (!snapped) { if (!dx) return; snap(); snapped = true; inp._snap = true; }   // the synthetic input event must not snap again
+        let nv = +(v0 + dx * step * (e2.shiftKey ? 10 : 1)).toFixed(dec);
+        const L = inp._lim && inp._lim();                    // real/logical bounds — the scrubbed number stops AT the limit
+        if (L) nv = Math.min(L.max, Math.max(L.min, nv));
+        inp.value = nv;
+        inp.dispatchEvent(new Event('input'));
+      };
+      const up = () => {
+        document.removeEventListener('mousemove', mm);
+        document.removeEventListener('mouseup', up);
+        document.body.style.cursor = '';
+        stage.classList.remove('scrubbing');
+      };
+      document.body.style.cursor = 'ew-resize';
+      stage.classList.add('scrubbing');   /* hides the sel chrome for the drag (labels don't take focus) */
+      document.addEventListener('mousemove', mm);
+      document.addEventListener('mouseup', up);
+    };
+  });
+
+  /* nothing selected → the canvas itself is the subject: grupa „Płótno" (C3-style) —
+     wszystkie parametry płótna w jednym miejscu (tło + rozmiar), nie w górnym pasku */
+  if (!e) {
+    const cur = doc.w + 'x' + doc.h;
+    /* pełna lista rozmiarów wg kanałów; duplikaty wartości między grupami są OK —
+       zaznaczany jest pierwszy trafiony. Brak trafienia → „własny rozmiar" + pola niżej. */
+    const SIZE_GROUPS = [
+      ['Pinterest', [
+        ['1000x1500','1000 × 1500 — pin 2:3'],
+        ['1000x2100','1000 × 2100 — pin długi'],
+        ['1080x1920','1080 × 1920 — idea pin 9:16']]],
+      ['Instagram', [
+        ['1080x1080','1080 × 1080 — post kwadrat'],
+        ['1080x1350','1080 × 1350 — post 4:5'],
+        ['1080x566','1080 × 566 — post poziomy'],
+        ['1080x1920','1080 × 1920 — stories / reels']]],
+      ['Facebook / www', [
+        ['1200x630','1200 × 630 — post z linkiem (OG)'],
+        ['820x312','820 × 312 — cover strony'],
+        ['1920x1080','1920 × 1080 — baner 16:9'],
+        ['1280x720','1280 × 720 — HD 16:9']]],
+      ['Sklep', [
+        ['2048x2048','2048 × 2048 — zdjęcie produktu']]],
+      ['Wydruk 300 dpi', [
+        ['2480x3508','2480 × 3508 — A4 pion'],
+        ['3508x2480','3508 × 2480 — A4 poziom'],
+        ['1748x2480','1748 × 2480 — A5 pion'],
+        ['1063x591','1063 × 591 — wizytówka 90 × 50 mm']]],
+      ['Inne', [
+        ['1000x1000','1000 × 1000 — kwadrat']]]
+    ];
+    let matched = false;
+    const opt = s => {
+      const selNow = !matched && s[0] === cur;
+      if (selNow) matched = true;
+      return `<option value="${s[0]}"${selNow ? ' selected' : ''}>${s[1]}</option>`;
+    };
+    const optsHtml = SIZE_GROUPS.map(g => `<optgroup label="${g[0]}">` + g[1].map(opt).join('') + `</optgroup>`).join('');
+    const ico = document.querySelector('#helpModal .hnav[data-tab="canvas"] img');
+    p.innerHTML = grp('Płótno',
+      (ico ? `<span class="gic"><img src="${ico.src}"></span>` : '') + `<span>Płótno</span>`,
+      row('Tło', `<button class="cswbtn" data-cv="bg" style="background:${doc.bg}" title="${doc.bg}"></button>` +
+        `<button class="cpick" data-cv="bgpick" title="Pipeta — pobierz kolor z ekranu"><img src="${ICON_PIPETTE}"></button>`) +
+      row('Rozmiar', `<select data-cv="size"><option value="custom"${matched ? '' : ' selected'}>— własny rozmiar —</option>` + optsHtml + `</select>`) +
+      row('Szer.', `<input type="number" data-cv="w" value="${doc.w}" step="1">`) +
+      row('Wys.', `<input type="number" data-cv="h" value="${doc.h}" step="1">`));
+    wireGroups();
+    const bg = p.querySelector('[data-cv="bg"]');
+    bg.onclick = () => colorTrigger(bg, doc.bg, v => { doc.bg = v; bg.style.background = v; bg.title = v; draw(); }, 'Tło płótna');
+    p.querySelector('[data-cv="bgpick"]').onclick = () =>
+      eyedrop(v => { snap(); doc.bg = v; bg.style.background = v; bg.title = v; remember(colors.recent, v); saveColors(); draw(); });
+    const szSel = p.querySelector('[data-cv="size"]');
+    const wIn = p.querySelector('[data-cv="w"]'), hIn = p.querySelector('[data-cv="h"]');
+    szSel.onchange = ev => {
+      if (ev.target.value === 'custom') return;      // placeholder — wymiary ustawiają pola niżej
+      const [w, h] = ev.target.value.split('x').map(Number);
+      snap(); doc.w = w; doc.h = h;
+      wIn.value = w; hIn.value = h;
+      draw(); applyZoom();
+    };
+    /* własny rozmiar: pisane/scrubowane na żywo; wartości < 50 px czekają na kolejną cyfrę */
+    const applyWH = () => {
+      const w = Math.round(parseFloat(wIn.value)) || 0, h = Math.round(parseFloat(hIn.value)) || 0;
+      if (w >= 50) doc.w = Math.min(w, 8000);
+      if (h >= 50) doc.h = Math.min(h, 8000);
+      const v = doc.w + 'x' + doc.h;
+      szSel.value = [...szSel.options].some(o => o.value === v) ? v : 'custom';
+      draw(); applyZoom();
+    };
+    [wIn, hIn].forEach(inp => {
+      inp.onfocus = () => { inp._snap = false; };    // lazy: one undo step per typing session, none without a change
+      inp.oninput = () => { if (!inp._snap) { inp._snap = true; snap(); } applyWH(); };
+      inp.onchange = () => { wIn.value = doc.w; hIn.value = doc.h; };   // commit view = real doc values
+      inp._lim = () => ({ min: 50, max: 8000 });     // canvas side: 50..8000 px — huge exports blow the render canvas
+    });
+    wireScrub();
+    return;
+  }
+
+  const n = (k, lab, step, dflt) => row(lab, `<input type="number" data-k="${k}" value="${e[k] ?? dflt ?? 0}" step="${step||1}">`);
+  const c = (k, lab) => row(lab, `<button class="cswbtn" data-ck="${k}" style="background:${e[k] || '#000000'}" title="${e[k] || '#000000'}"></button>` +
+    `<button class="cpick" data-ck="${k}" title="Pipeta — pobierz kolor z ekranu"><img src="${ICON_PIPETTE}"></button>`);
+  const framed = e.type === 'img' && (e.fit === 'cover' || e.fit === 'contain');   // img in a kadr = free w×h box
+
+  /* group header = element icon chip + short type tag */
+  const typeHead = (TYPE_ICON[e.type] ? `<span class="gic"><img src="${TYPE_ICON[e.type]}"></span>` : '') +
+    `<span>${TYPE_TAG[e.type] || e.type}</span>`;
+  let h = grp('Element', typeHead,
+    (e.type === 'img' ? row('Obraz', `<button id="imgSwap">Podmień obraz…</button>`) : '') +
+    row('Nazwa', `<input type="text" data-k="name" value="${(e.name||'').replace(/"/g,'&quot;')}">`));
+
+  const duo = (k1, l1, k2, l2) => `<div class="prow duo"><label>${l1}</label><span class="val"><input type="number" data-k="${k1}" value="${e[k1] ?? 0}" step="1"></span><label>${l2}</label><span class="val"><input type="number" data-k="${k2}" value="${e[k2] ?? 0}" step="1"></span></div>`;
+  let pos = duo('x','X','y','Y');
+  if (e.type === 'box' || framed) {
+    /* Szer.+Wys. wrapped together: the chain button on the right = proportional resize */
+    pos += `<div class="whwrap">` + n('w','Szer.') + n('h','Wys.') +
+      `<button id="whLock"${e.keepRatio ? ' class="on"' : ''} title="Zmieniaj proporcjonalnie"><img alt=""></button></div>`;
+  } else {
+    pos += n('w','Szer.');
+  }
+  pos += n('rot','Obrót °');
+  h += grp('Pozycja i rozmiar', 'Pozycja i rozmiar', pos);
+
+  /* Cień group — shared by Kształt and Tekst (box = drop-shadow filter, text = text-shadow) */
+  const cien = () => {
+    let cn = row('Cień', `<select data-k="sh">
+            <option value="false" ${!e.sh?'selected':''}>nie</option>
+            <option value="true" ${e.sh?'selected':''}>tak</option></select>`);
+    if (e.sh) cn += duo('shx','X','shy','Y') + n('shb','Rozmycie') + n('sho','Krycie %') + c('shc','Kolor');
+    return grp('Cień', 'Cień', cn);
+  };
+  /* Obrys (text outline) — same nie/tak convention as Cień */
+  const obrys = () => {
+    let ob = row('Obrys', `<select data-k="ol">
+            <option value="false" ${!e.ol?'selected':''}>nie</option>
+            <option value="true" ${e.ol?'selected':''}>tak</option></select>`);
+    if (e.ol) ob += n('olw','Grubość', 0.5, 2) + c('olc','Kolor');
+    return grp('Obrys', 'Obrys', ob);
+  };
+
+  if (e.type === 'text') {
+    /* Construct-3 Text property order: Text / Font / Size / Line height / Bold / Italic /
+       Color / Horizontal alignment. Grubość stands in for Bold (our fonts carry weight
+       lists, none has a 700); Odstęp is ours, so it goes last. The Tekst value spans the
+       whole row — the group header already says "Tekst", a row label would repeat it. */
+    let t = `<div class="prow full"><span class="val"><textarea data-k="text">${(e.text||'').replace(/</g,'&lt;')}</textarea></span></div>`;
+    const fopt = f => `<option ${f===e.font?'selected':''}>${f}</option>`;
+    const fams = Object.keys(FONTS);
+    const own = fams.filter(f => FONTS[f].user);
+    /* a doc may reference a user font that was deleted — keep the raw name selectable
+       so the select doesn't silently jump to the first option */
+    t += row('Font', `<select data-k="font">` +
+         (FONTS[e.font] ? '' : `<option selected>${e.font}</option>`) +
+         `<optgroup label="Ulubione — Sallora">` + fams.filter(f => FONTS[f].fav).map(fopt).join('') + `</optgroup>` +
+         `<optgroup label="Pozostałe">` + fams.filter(f => !FONTS[f].fav && !FONTS[f].user).map(fopt).join('') + `</optgroup>` +
+         (own.length ? `<optgroup label="Własne">` + own.map(fopt).join('') + `</optgroup>` : '') +
+         `<option value="__fnt">+ Własne fonty…</option>` +
+         `</select>`);
+    t += n('size','Rozmiar') + n('lh','Interlinia', 0.02);
+    const ws = (FONTS[e.font] || {weights:[400]}).weights;
+    t += row('Grubość', `<select data-k="weight">` +
+         ws.map(w => `<option value="${w}" ${w==e.weight?'selected':''}>${w}</option>`).join('') + `</select>`);
+    t += row('Pogrubienie', `<input type="checkbox" data-k="bold"${e.bold ? ' checked' : ''}>`);
+    t += row('Kursywa', `<input type="checkbox" data-k="italic"${e.italic ? ' checked' : ''}>`);
+    t += c('color','Kolor');
+    t += row('Wyrówn.', `<select data-k="align">` +
+         [['left','Do lewej'],['center','Do środka'],['right','Do prawej']]
+           .map(a => `<option value="${a[0]}" ${a[0]===e.align?'selected':''}>${a[1]}</option>`).join('') + `</select>`);
+    t += n('ls','Odstęp', 0.01);
+    t += n('op','Krycie %', 1, 100);
+    h += grp('Tekst', 'Tekst', t);
+    h += obrys();
+    h += cien();
+  }
+  if (e.type === 'box') {
+    let wg = row('Figura', `<select data-k="shape">` +
+      [['rect','Prostokąt'],['star','Gwiazda']]
+        .map(o => `<option value="${o[0]}" ${o[0]===(e.shape||'rect')?'selected':''}>${o[1]}</option>`).join('') + `</select>`);
+    if (e.shape === 'star') wg += n('points','Ramiona') + n('inner','Wcięcie %');
+    wg += n('radius','Zaokrągl.');
+    h += grp('Wygląd', 'Wygląd', wg + c('color','Kolor') + n('op','Krycie %', 1, 100));
+    h += cien();
+  }
+  if (e.type === 'rule') {
+    let wg = n('thick','Grubość');
+    /* Styl = dropdown with pattern previews (r3, Lasha: dropdown reads better than
+       the cramped segmented buttons) — trigger shows the current stroke, list in #lspop */
+    const lscur = LSTYLES.find(o => o[0] === (e.lstyle || 'solid')) || LSTYLES[0];
+    wg += row('Styl', `<button class="lssel" title="${lscur[1]}">${lsSvg(lscur)}<span class="arr">▼</span></button>`);
+    if (e.lstyle === 'dash' || e.lstyle === 'dashdot') wg += duo('dash','Kreska','gap','Przerwa');
+    if (e.lstyle === 'dot')  wg += n('gap','Przerwa');
+    wg += row('Końce', `<select data-k="cap">` +
+      [['butt','Płaskie'],['round','Zaokrąglone'],['square','Kwadratowe']]
+        .map(o => `<option value="${o[0]}" ${o[0]===(e.cap||'butt')?'selected':''}>${o[1]}</option>`).join('') + `</select>`);
+    h += grp('Wygląd', 'Wygląd', wg + c('color','Kolor') + n('op','Krycie %', 1, 100));
+    h += cien();
+  }
+  if (e.type === 'img') {
+    /* Kadr: auto = old behaviour · cover = crop to the frame · contain = letterbox in it */
+    let wg = row('Kadr', `<select data-k="fit">` +
+      [['auto','Cały obraz (auto)'],['cover','Wypełnij ramkę'],['contain','Zmieść w ramce']]
+        .map(o => `<option value="${o[0]}" ${o[0]===(e.fit||'auto')?'selected':''}>${o[1]}</option>`).join('') + `</select>`);
+    if (e.fit === 'cover') wg += duo('fx','Poz. X %','fy','Poz. Y %');
+    wg += n('br','Jasność %', 1, 100) + n('ct','Kontrast %', 1, 100) + n('sat','Nasycenie %', 1, 100);
+    wg += n('radius','Zaokrągl.') + n('op','Krycie %', 1, 100);
+    h += grp('Wygląd', 'Wygląd', wg);
+  }
+
+  p.innerHTML = h;
+
+  wireGroups();
+
+  /* ratio anchor for keepRatio — captured at panel build / lock toggle, so long
+     scrubs don't drift the proportion through repeated rounding */
+  let aw = e.w || 0, ah = e.h || 0;
+  p.querySelectorAll('[data-k]').forEach(inp => {
+    /* lazy snapshot BEFORE the first real change of a focus session — the old
+       onchange-snap fired AFTER the edit, so undoing a typed value took 2×Ctrl+Z
+       (and the pre-state was never recorded). Scrub snaps itself and marks _snap. */
+    inp.onfocus = () => { inp._snap = false; };
+    if (inp.type === 'number') {
+      inp._lim = () => limOf(inp.dataset.k, e);   // scrub clamps through this
+      /* blur: the box shows the COMMITTED value (a below-min number typed mid-session) */
+      inp.onchange = () => { if (limOf(inp.dataset.k, e)) inp.value = e[inp.dataset.k] ?? ''; };
+    }
+    inp.oninput = () => {
+      if (!inp._snap) { inp._snap = true; snap(); }
+      const k = inp.dataset.k;
+      let v = inp.value;
+      if (inp.type === 'number') {
+        v = parseFloat(v) || 0;
+        const L = limOf(k, e);
+        if (L) {
+          const cv = Math.min(L.max, Math.max(L.min, v));
+          /* over max: fix the box at once (more digits only grow it); under min
+             mid-typing: leave the box alone (typing "12" via "1") — onchange restores it */
+          if (v > L.max) inp.value = cv;
+          v = cv;
+        }
+      }
+      if (inp.type === 'checkbox') v = inp.checked;
+      if (k === 'sh') v = (v === 'true');
+      if (k === 'ol') v = (v === 'true');
+      if (k === 'font' && v === '__fnt') { inp.value = e.font; openFntMgr(); return; }   // command entry, not a font
+      e[k] = v;
+      if (e.keepRatio && (k === 'w' || k === 'h') && aw > 0 && ah > 0) {
+        const k2 = k === 'w' ? 'h' : 'w';
+        const v2 = Math.round(k === 'w' ? v * ah / aw : v * aw / ah);
+        e[k2] = v2;
+        const o = p.querySelector(`input[data-k=${k2}]`);
+        if (o) o.value = v2;
+      }
+      if (k === 'font') { const ws = (FONTS[v] || {weights:[400]}).weights; if (!ws.includes(+e.weight)) e.weight = ws[0]; buildProps(); }
+      if (k === 'shape') { if (v === 'star') { if (e.points == null) e.points = 5; if (e.inner == null) e.inner = 50; } buildProps(); }
+      if (k === 'sh') { if (v && e.shx == null) { e.shx = 6; e.shy = 6; e.shb = 12; e.sho = 35; e.shc = '#000000'; } buildProps(); }
+      if (k === 'ol') { if (v && e.olw == null) { e.olw = 2; e.olc = '#000000'; } buildProps(); }
+      if (k === 'fit') {
+        /* entering a kadr: freeze the CURRENT rendered height as the frame, centre the crop */
+        if (v === 'cover' || v === 'contain') {
+          if (e.h == null) { const nn = node(e.id); e.h = nn ? Math.round(nn.offsetHeight) : Math.round((e.w || 100) * 0.75); }
+          if (e.fx == null) { e.fx = 50; e.fy = 50; }
+        }
+        buildProps();
+      }
+      draw(); buildList();
+    };
+  });
+  /* chain button: toggle proportional Szer./Wys. (stored on the element, survives save) */
+  const wl = document.getElementById('whLock');
+  if (wl) {
+    const wlImg = wl.querySelector('img');
+    wlImg.src = e.keepRatio ? ICON_LINK : ICON_LINK_OFF;
+    wl.onclick = () => {
+      snap();
+      e.keepRatio = !e.keepRatio;
+      aw = e.w || 0; ah = e.h || 0;
+      wl.classList.toggle('on', !!e.keepRatio);
+      wlImg.src = e.keepRatio ? ICON_LINK : ICON_LINK_OFF;
+      persist();
+    };
+  }
+  wireScrub();
+
+  const sw = document.getElementById('imgSwap');
+  if (sw) sw.onclick = () => document.getElementById('filePick').click();
+
+  /* Styl linii: trigger toggles the pattern-preview dropdown (#lspop) */
+  const lst = p.querySelector('.lssel');
+  if (lst) lst.onclick = () => lspop.style.display === 'block' ? closeLsPop() : openLsPop(lst, e);
+
+  p.querySelectorAll('.cswbtn[data-ck]').forEach(btn => btn.onclick = () => {
+    const k = btn.dataset.ck;
+    colorTrigger(btn, e[k], v => { e[k] = v; btn.style.background = v; btn.title = v; draw(); });
+  });
+  /* pipeta obok każdego koloru: pick from screen, applied instantly — no popover */
+  p.querySelectorAll('.cpick[data-ck]').forEach(btn => btn.onclick = () => {
+    const k = btn.dataset.ck;
+    eyedrop(v => {
+      snap();
+      e[k] = v;
+      const sw = btn.previousElementSibling;
+      sw.style.background = v; sw.title = v;
+      remember(colors.recent, v); saveColors();
+      draw();
+    });
+  });
+}
+
+/* ---------- color popover: saved + recent swatches ---------- */
+const LS_COLORS = 'sallora-studio-colors';
+const SW_MAX = 10;                        // keeps each of the two rows a single line
+const cpop = document.getElementById('cpop');
+const cpNative = document.getElementById('cpNative');
+const cpHex = document.getElementById('cpHex');
+let colors = (() => {
+  try {
+    const c = JSON.parse(localStorage.getItem(LS_COLORS));
+    if (c && Array.isArray(c.saved) && Array.isArray(c.recent)) return c;
+  } catch (e) {}
+  /* first run = the brand palette */
+  return { saved:[CREAM.toLowerCase(), INK, ROSE, HAIR.toLowerCase(), MUTED], recent:[] };
+})();
+function saveColors() { localStorage.setItem(LS_COLORS, JSON.stringify(colors)); }
+function remember(list, v) {
+  const i = list.indexOf(v);
+  if (i >= 0) list.splice(i, 1);
+  list.unshift(v);
+  if (list.length > SW_MAX) list.pop();
+}
+let cpApply = null, cpAnchor = null, cpCur = '#000000', cpSnapped = false;
+function cpCommit(v) {
+  v = v.toLowerCase();
+  if (!/^#[0-9a-f]{6}$/.test(v)) return;
+  if (!cpSnapped) { snap(); cpSnapped = true; }   // one undo step per popover session
+  cpCur = v;
+  cpNative.value = v;
+  if (cpHex.value.toLowerCase() !== v) cpHex.value = v;
+  cpApply(v);
+}
+function swRow(box, list, removable) {
+  box.innerHTML = '';
+  if (!list.length) { box.innerHTML = '<span class="none">— pusto —</span>'; return; }
+  for (const v of list) {
+    const b = document.createElement('button');
+    b.className = 'sw'; b.style.background = v;
+    b.title = v + (removable ? ' · prawy klik usuwa' : '');
+    b.onclick = () => cpCommit(v);
+    if (removable) b.oncontextmenu = ev => {
+      ev.preventDefault();
+      askConfirm(b, 'Usunąć kolor ' + v + ' z zapisanych?', 'Usuń', () => {
+        colors.saved = colors.saved.filter(x => x !== v);
+        saveColors(); buildSwatches();
+      });
+    };
+    box.appendChild(b);
+  }
+}
+function buildSwatches() {
+  swRow(document.getElementById('cpSaved'), colors.saved, true);
+  swRow(document.getElementById('cpRecent'), colors.recent, false);
+}
+function openColorPop(anchor, cur, apply, label) {
+  cpApply = apply; cpAnchor = anchor; cpSnapped = false;
+  document.getElementById('cpTitle').textContent = label || 'Kolor';
+  cpCur = /^#[0-9a-f]{6}$/i.test(cur || '') ? cur.toLowerCase() : '#000000';
+  cpNative.value = cpCur; cpHex.value = cpCur;
+  buildSwatches();
+  cpop.classList.add('open');
+  const w = cpop.offsetWidth, h = cpop.offsetHeight;
+  if (cpMoved) {
+    /* a floating window: once Lasha drags it, it stays where he put it (clamped) */
+    const r0 = cpop.getBoundingClientRect();
+    cpop.style.left = Math.max(8, Math.min(r0.left, innerWidth - w - 8)) + 'px';
+    cpop.style.top  = Math.max(8, Math.min(r0.top,  innerHeight - h - 8)) + 'px';
+    return;
+  }
+  /* default: beside the trigger (left of it), not on top of what's being edited */
+  const r = anchor.getBoundingClientRect();
+  let x = r.left - w - 12;
+  if (x < 8) x = Math.min(r.right + 12, innerWidth - w - 8);
+  let y = r.top < 60 ? r.bottom + 8 : r.top - 8;   // topbar trigger -> below it
+  cpop.style.left = Math.max(8, x) + 'px';
+  cpop.style.top = Math.max(8, Math.min(y, innerHeight - h - 8)) + 'px';
+}
+function closeColorPop() {
+  if (!cpop || !cpop.classList.contains('open')) return;
+  if (cpSnapped) { remember(colors.recent, cpCur); saveColors(); }   // the colour actually used
+  cpop.classList.remove('open');
+  cpApply = null; cpAnchor = null;
+}
+/* trigger: click toggles on the same button, moves to another */
+function colorTrigger(btn, cur, apply, label) {
+  if (cpop.classList.contains('open') && cpAnchor === btn) { closeColorPop(); return; }
+  closeColorPop();
+  openColorPop(btn, cur, apply, label);
+}
+cpNative.oninput = ev => cpCommit(ev.target.value);
+cpHex.oninput = () => {
+  let v = cpHex.value.trim();
+  if (v && v[0] !== '#') v = '#' + v;
+  if (/^#[0-9a-fA-F]{6}$/.test(v)) cpCommit(v);
+};
+/* pipeta in the popover — the popover may be gone by the time the pick resolves
+   (Esc / outside click), hence the cpApply guard */
+const cpPick = document.getElementById('cpPick');
+cpPick.querySelector('img').src = ICON_PIPETTE;
+cpPick.onclick = () => eyedrop(v => { if (cpApply) cpCommit(v); });
+document.getElementById('cpSave').onclick = () => {
+  const dropped = colors.saved.length >= SW_MAX && !colors.saved.includes(cpCur);
+  remember(colors.saved, cpCur); saveColors(); buildSwatches();
+  toast(dropped ? 'Zapisano ' + cpCur + ' (najstarszy wypadł z listy)' : 'Zapisano kolor: ' + cpCur);
+};
+window.addEventListener('mousedown', ev => {
+  if (!cpop.classList.contains('open')) return;
+  if (cpop.contains(ev.target) || (cpAnchor && cpAnchor.contains(ev.target)) || cfm.contains(ev.target)) return;
+  closeColorPop();
+});
+/* X icon reused at runtime from the gallery's close button — no base64 duplication */
+document.querySelector('#cpClose img').src = document.querySelector('#tplClose img').src;
+document.getElementById('cpClose').onclick = closeColorPop;
+/* floating window: drag by the header bar */
+let cpDrag = null, cpMoved = false;
+document.getElementById('cpHead').addEventListener('mousedown', ev => {
+  if (ev.button !== 0 || ev.target.closest('.cpx')) return;
+  const r = cpop.getBoundingClientRect();
+  cpDrag = { dx: ev.clientX - r.left, dy: ev.clientY - r.top };
+  ev.preventDefault();
+});
+window.addEventListener('mousemove', ev => {
+  if (!cpDrag) return;
+  cpMoved = true;
+  cpop.style.left = Math.max(8, Math.min(ev.clientX - cpDrag.dx, innerWidth - cpop.offsetWidth - 8)) + 'px';
+  cpop.style.top  = Math.max(8, Math.min(ev.clientY - cpDrag.dy, innerHeight - cpop.offsetHeight - 8)) + 'px';
+});
+window.addEventListener('mouseup', () => { cpDrag = null; });
+
+/* ---------- canvas settings (tło + rozmiar) live in the props panel — grupa „Płótno" ---------- */
+function applyZoom() {
+  const k = zoom();
+  scaler.style.transform = 'scale(' + k + ')';
+  scaler.style.width  = (doc.w * k) + 'px';
+  scaler.style.height = (doc.h * k) + 'px';
+  document.getElementById('zv').textContent = Math.round(k*100) + '%';
+  // keep the selection handles the same size on screen at every zoom level
+  stage.style.setProperty('--hs', (11/k).toFixed(2) + 'px');
+  stage.style.setProperty('--hb', (2/k).toFixed(2) + 'px');
+  stage.style.setProperty('--ol', (1.5/k).toFixed(2) + 'px');
+}
+document.getElementById('zoom').oninput = applyZoom;
+
+/* dbl-click an element = zoom in on it: canvas zooms, element lands centred in view */
+function zoomToEl(id) {
+  const e = el(id); if (!e) return;
+  const area = document.getElementById('canvasArea');
+  const n = node(id);
+  const eh = n ? n.offsetHeight : (e.h || 100);   // layout height — transform doesn't affect it
+  const zr = document.getElementById('zoom');
+  // element takes ~half the viewport on its tighter axis, clamped to the slider range
+  let k = Math.min(area.clientWidth * .5 / e.w, area.clientHeight * .5 / eh) * 100;
+  k = Math.max(+zr.min, Math.min(+zr.max, Math.round(k)));
+  zr.value = k;
+  applyZoom();
+  const kk = k / 100;
+  const ar = area.getBoundingClientRect(), sr = scaler.getBoundingClientRect();
+  area.scrollLeft = sr.left - ar.left + area.scrollLeft + (e.x + e.w / 2) * kk - area.clientWidth  / 2;
+  area.scrollTop  = sr.top  - ar.top  + area.scrollTop  + (e.y + eh  / 2) * kk - area.clientHeight / 2;
+}
+
+/* ---------- export: DOM -> SVG foreignObject -> canvas -> PNG ---------- */
+function toast(m) { const s = document.getElementById('status'); s.textContent = m; setTimeout(() => { if (s.textContent === m) s.textContent = ''; }, 3500); }
+function download(blob, name) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = name; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+}
+
+async function renderCanvas() {
+  const inner = stage.cloneNode(true);
+  inner.querySelectorAll('.h,.guide').forEach(x => x.remove());
+  inner.querySelectorAll('.el').forEach(x => x.classList.remove('sel'));
+  inner.style.boxShadow = 'none';
+
+  const css = (window.FONT_CSS || '') + userFontCss() +
+    `*{box-sizing:border-box;margin:0;padding:0}` +
+    `#stage{position:relative;overflow:hidden}` +
+    `.el{position:absolute}.el img{width:100%;display:block}`;
+
+  // foreignObject content must be well-formed XML — the HTML serializer emits
+  // void tags like <img> unclosed, which kills the SVG parser. XMLSerializer doesn't.
+  const wrap = document.createElement('div');
+  const st = document.createElement('style');
+  st.appendChild(document.createTextNode(css));
+  wrap.appendChild(st);
+  wrap.appendChild(inner);
+  const xml = new XMLSerializer().serializeToString(wrap);
+
+  const svg =
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${doc.w}" height="${doc.h}">` +
+    `<foreignObject x="0" y="0" width="${doc.w}" height="${doc.h}">` +
+    xml +
+    `</foreignObject></svg>`;
+
+  const img = new Image();
+  img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+  await img.decode();
+
+  const cv = document.createElement('canvas');
+  cv.width = doc.w; cv.height = doc.h;
+  const ctx = cv.getContext('2d');
+  ctx.fillStyle = doc.bg;
+  ctx.fillRect(0, 0, doc.w, doc.h);
+  ctx.drawImage(img, 0, 0);
+  return cv;
+}
+
+document.getElementById('png').onclick = async () => {
+  const keep = selId;
+  selId = null; draw();
+  toast('Renderuję…');
+  const jpg = document.getElementById('fmt').value === 'jpg';
+  try {
+    const cv = await renderCanvas();   // bg is always painted first, so JPG has no alpha to lose
+    cv.toBlob(b => {
+      download(b, (doc.name.replace(/[^\w\-]+/g,'-').toLowerCase() || 'pin') + '-' + doc.w + 'x' + doc.h + (jpg ? '.jpg' : '.png'));
+      toast('Gotowe — sprawdź folder Pobrane');
+    }, jpg ? 'image/jpeg' : 'image/png', jpg ? 0.92 : undefined);
+  } catch (err) {
+    toast('Błąd renderowania: ' + err.message);
+  }
+  selId = keep; draw();
+};
+
+/* ---------- skrzynka od Kolażu ----------
+   collage.html („Do Clamy") zostawia gotowy kolaż w localStorage (ten sam file:// origin —
+   tak samo wędrują zapisane kolory). Na starcie / przy powrocie do okna Clama pyta,
+   czy wstawić go na płótno jako zwykły element-obraz. Jedna oferta na jedną wysyłkę. */
+const LS_INBOX = 'sallora-studio-inbox';
+let inboxSeenTs = null;
+function insertCollage(m) {
+  snap();
+  const ar = (m.w > 0 && m.h > 0) ? m.h / m.w : 1;
+  const w = Math.round(doc.w * .9);
+  const e = { id: uid(), type:'img', name:'Kolaż', x: Math.round((doc.w - w) / 2),
+              y: Math.max(0, Math.round((doc.h - w * ar) / 2)), w, radius:0, rot:0, src: m.src };
+  doc.els.push(e);
+  selId = e.id;
+  draw(); buildList(); buildProps();
+  toast('Kolaż wstawiony (Ctrl+Z cofa)');
+}
+function checkInbox() {
+  if (RENDER) return;
+  /* okno Kolażu na wierzchu → nie oferuj pod spodem; focus przy powrocie spyta ponownie */
+  const kw = document.getElementById('kolazWrap');
+  if (kw && kw.classList.contains('open')) return;
+  let m = null;
+  try { m = JSON.parse(localStorage.getItem(LS_INBOX) || 'null'); } catch (e) {}
+  if (!m || !m.src || m.ts === inboxSeenTs) return;
+  inboxSeenTs = m.ts;              // Anuluj = spokój do następnej wysyłki (skrzynka zostaje)
+  askConfirm(document.getElementById('tplMenuBtn'),
+    'Gotowy kolaż z okna „Kolaż" — wstawić go na płótno jako obraz?', 'Wstaw', () => {
+      localStorage.removeItem(LS_INBOX);
+      insertCollage(m);
+    });
+}
+window.addEventListener('focus', checkInbox);
+window.addEventListener('storage', ev => { if (ev.key === LS_INBOX && ev.newValue) checkInbox(); });
+
+/* ---------- okno Kolażu w Clamie: jedno okno, dwa narzędzia ----------
+   „Kolaż" w topbarze otwiera collage.html w pełnoekranowym iframe (leniwie, raz —
+   iframe zostaje w DOM po przełączeniu, więc ułożony kolaż nie znika). Wraca się
+   przyciskiem „Edytor" w Kolażu (postMessage kolaz-close) albo „Do Clamy"
+   (kolaz-collage → wstawiamy OD RAZU, bez pytania — kliknięcie w tym samym oknie
+   JEST zgodą; askConfirm zostaje dla trasy standalone przez localStorage). */
+if (RENDER) {
+  const kw = document.getElementById('kolazWrap');
+  if (kw) kw.remove();
+} else {
+  const kolazWrap = document.getElementById('kolazWrap');
+  const kolazFrame = document.getElementById('kolazFrame');
+  const openKolaz = () => {
+    if (!kolazFrame.src) kolazFrame.src = 'collage.html';
+    kolazWrap.classList.add('open');
+    setTimeout(() => { try { kolazFrame.contentWindow.focus(); } catch (e) {} }, 60);  // klawisze do Kolażu
+  };
+  const closeKolaz = () => { kolazWrap.classList.remove('open'); window.focus(); };
+  document.getElementById('kolazBtn').onclick = openKolaz;
+  window.addEventListener('message', ev => {
+    const m = ev.data || {};
+    if (m.type === 'kolaz-close') closeKolaz();
+    else if (m.type === 'kolaz-collage' && m.src) { closeKolaz(); insertCollage(m); }
+  });
+}
+
+boot().then(checkInbox);
+</script>

@@ -1,0 +1,2031 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<title>CLAMA — Kolaż</title>
+<script src="fonts.js"></script>
+<style>
+  /* CLAMA's warm chrome palette (unified 2026-07-14 — the cool-blue scheme is gone) */
+  :root { --bg:#242424; --bar:#171717; --chip:#282828; --border:#303030;
+          --fg:#e8e8e8; --dim:#9a9a9a; --warm:#8a7a6e; --acc:#b4593f; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  html,body { height:100%; }
+  body { background:var(--bg); color:var(--fg); font:13px/1.4 "DM Sans","Segoe UI",sans-serif;
+         display:flex; flex-direction:column; overflow:hidden; }
+
+  /* top bar — CLAMA's exact chrome: 46px, quiet icon buttons, Bellefair brand */
+  header { height:46px; flex:0 0 46px; display:flex; align-items:center; gap:4px; padding:0 10px;
+           background:var(--bar); border-bottom:1px solid var(--border); }
+  #brand { font-family:'Bellefair', Georgia, serif; font-size:19px; letter-spacing:.22em;
+           color:#c9b8aa; margin:0 10px 0 2px; flex:0 0 auto; user-select:none; white-space:nowrap; }
+  #brand b { color:#a4553f; font-weight:400; }
+  .sep { width:1px; height:22px; background:var(--border); margin:0 4px; flex:0 0 1px; }
+  .grow { flex:1; }
+  #status { color:var(--dim); font-size:11px; margin:0 8px 0 4px; white-space:nowrap;
+            overflow:hidden; text-overflow:ellipsis; max-width:40vw; flex:0 1 auto; }
+  #status.t { color:#7fae7f; }
+  header .tbtn { display:flex; align-items:center; gap:7px; flex:0 0 auto;
+                 background:none; border:1px solid transparent; border-radius:5px;
+                 padding:6px 8px; cursor:pointer; color:#cfcfcf; font-size:12px; white-space:nowrap; }
+  header .tbtn:hover { background:#2b2b2b; border-color:#3d3d3d; }
+  header .tbtn.on { background:#5e2b20; border-color:#8a4a3a; color:#fff; }
+  header .tbtn img { width:17px; height:17px; display:block; opacity:.85; }
+  header #dl { flex:0 0 auto; display:flex; align-items:center; gap:7px; padding:7px 12px; font-size:12px; }
+  header #dl img { width:16px; height:16px; display:block; }
+  header #fmt { flex:0 0 auto; }
+
+  button { background:#333; color:var(--fg); border:1px solid #444;
+           border-radius:3px; padding:6px 8px; cursor:pointer; font-family:inherit; font-size:11px; }
+  button:hover { background:#404040; }
+  button:disabled { opacity:.4; cursor:default; }
+  button:disabled:hover { background:#333; }
+  button.primary { background:#5e2b20; border-color:#5e2b20; color:#fff; font-weight:600; font-size:12px; padding:9px; }
+  button.primary:hover { background:#77372a; }
+  /* green = the non-destructive twin of the red merge: it adds, nothing is lost */
+  button.green { background:#2d5a41; border-color:#2d5a41; color:#fff; font-weight:600; font-size:12px; padding:9px; }
+  button.green:hover { background:#3a7052; }
+  button.green:disabled:hover { background:#2d5a41; }
+  select,input[type=number] { background:var(--chip); color:var(--fg);
+      border:1px solid #3d3d3d; border-radius:3px; padding:5px 6px; font-family:inherit; font-size:12px; }
+  input[type=number] { width:72px; }
+
+  main { flex:1; display:flex; min-height:0; }
+  #col { flex:1; display:flex; flex-direction:column; min-width:0; }
+  #stage { flex:1; position:relative; display:flex; align-items:center;
+           justify-content:center; min-width:0; min-height:0; }
+  #cv { box-shadow:0 4px 24px rgba(0,0,0,.5); touch-action:none; }
+
+  /* right panel — CLAMA conventions: paneBox frames + a Construct-3-style property grid */
+  * { scrollbar-width:thin; scrollbar-color:#3f3f3f #1c1c1c; }
+  input[type=number]::-webkit-outer-spin-button,
+  input[type=number]::-webkit-inner-spin-button { -webkit-appearance:none; margin:0; }
+  input[type=number] { -moz-appearance:textfield; appearance:textfield; }
+  aside { width:322px; flex:0 0 auto; background:var(--bar);
+          border-left:1px solid var(--border); overflow-y:auto; padding:14px; }
+  .paneBox { background:#1d1d1d; border:1px solid #333; border-radius:8px;
+             padding:10px 10px 9px; margin-bottom:18px; }
+  aside h3 { font-size:10px; text-transform:uppercase; letter-spacing:.18em;
+             color:var(--warm); margin:0 0 8px; font-weight:500; }
+  .row { display:flex; gap:6px; margin-bottom:6px; }
+  .row > * { flex:1; }
+  .row:last-of-type { margin-bottom:0; }
+  input[type=color] { width:46px; height:24px; border:1px solid var(--border);
+                      border-radius:4px; background:none; padding:0 2px; cursor:pointer; }
+  .hint { color:#6f6f6f; font-size:11px; line-height:1.5; margin-top:8px; }
+
+  #props .grp { border:1px solid #333; border-radius:5px; margin-bottom:8px;
+                overflow:hidden; background:#1f1f1f; }
+  #props .grp:last-child { margin-bottom:2px; }
+  #props .grpHead { display:flex; align-items:center; gap:7px; padding:6px 9px;
+                    background:var(--chip); cursor:pointer; font-size:11px; font-weight:600;
+                    color:#d6d6d6; user-select:none; }
+  #props .grpHead:hover { background:#2e2e2e; }
+  #props .grpHead .ar { font-size:8px; color:var(--warm); transition:transform .12s ease; }
+  #props .grp.closed .ar { transform:rotate(-90deg); }
+  #props .grp.closed .grpBody { display:none; }
+  #props .prow { display:flex; align-items:stretch; border-top:1px solid #2b2b2b; }
+  #props .prow:hover { background:#242424; }
+  #props .prow > label { flex:0 0 45%; padding:6px 9px; color:var(--dim); font-size:11px;
+                         border-right:1px solid #2b2b2b; display:flex; align-items:center; }
+  #props .prow > label.scrub { cursor:ew-resize; user-select:none; }
+  #props .prow .val { flex:1; min-width:0; display:flex; align-items:center; }
+  /* editable fields LOOK like fields (bg + border) — flat cells read as read-only */
+  #props .prow .val input, #props .prow .val select {
+    flex:1; min-width:0; width:auto; background:#2b2b2b; border:1px solid #3e3e3e;
+    border-radius:4px; color:var(--fg); margin:3px 6px; padding:4px 7px; font-size:12px;
+  }
+  #props .prow .val input:hover, #props .prow .val select:hover { border-color:#4e4e4e; }
+  #props .prow .val input:focus, #props .prow .val select:focus { border-color:var(--acc); background:#2f2f2f; outline:none; }
+  #props .brow { display:flex; gap:6px; padding:6px; border-top:1px solid #2b2b2b; }
+  #props .brow button { flex:1; padding:5px; }
+
+  .cswbtn { cursor:pointer; padding:0; height:26px; border:1px solid #3e3e3e; border-radius:4px; }
+  .cswbtn:hover { border-color:var(--acc); }
+  #props .prow .val .cswbtn { flex:1; height:26px; margin:3px 0 3px 6px; padding:0; }
+  /* pipeta beside every colour swatch — same as CLAMA (EyeDropper, Chrome) */
+  #props .prow .val .cpick { flex:0 0 26px; width:26px; height:26px; margin:3px 6px 3px 4px; padding:0;
+    background:none; border:1px solid transparent; border-radius:4px;
+    display:flex; align-items:center; justify-content:center; cursor:pointer; }
+  #props .prow .val .cpick:hover { background:#2b2b2b; border-color:var(--acc); }
+  #props .prow .val .cpick img { width:14px; height:14px; display:block; opacity:.8; }
+
+  /* color popover: saved + recent swatch rows (shared with CLAMA via localStorage) */
+  #cpop { position:fixed; z-index:640; display:none; width:286px;
+          background:#1c1c1c; border:1px solid #3a3a3a; border-radius:8px;
+          box-shadow:0 18px 50px rgba(0,0,0,.55); padding:0; overflow:hidden; }
+  #cpop.open { display:block; }
+  #cpHead { display:flex; align-items:center; gap:8px; padding:6px 6px 6px 12px;
+            border-bottom:1px solid #2e2e2e; cursor:move; }
+  #cpHead .ttl { flex:1; font-size:11px; letter-spacing:.16em; text-transform:uppercase;
+                 color:var(--warm); user-select:none; }
+  #cpHead .cpx { flex:0 0 26px; width:26px; height:24px; padding:0; background:none;
+                 border:1px solid transparent; border-radius:5px; color:var(--dim);
+                 font-size:13px; line-height:1; cursor:pointer; }
+  #cpHead .cpx:hover { background:#2b2b2b; border-color:#3d3d3d; color:var(--fg); }
+  #cpBody { padding:10px; }
+  #cpop .cprow { display:flex; gap:6px; }
+  #cpop .cprow input[type=color] { flex:1; height:28px; }
+  #cpop .cprow .cpx { flex:0 0 28px; width:28px; height:28px; padding:0; background:none;
+    border:1px solid transparent; border-radius:5px;
+    display:flex; align-items:center; justify-content:center; cursor:pointer; }
+  #cpop .cprow .cpx:hover { background:#2b2b2b; border-color:#3d3d3d; }
+  #cpop .cprow .cpx img { width:14px; height:14px; display:block; opacity:.8; }
+  #cpop #cpHex { flex:0 0 78px; text-align:center; background:var(--chip); color:var(--fg);
+                 border:1px solid #3d3d3d; border-radius:4px; font:inherit; padding:4px 6px; }
+  #cpop #cpHex:focus { border-color:var(--acc); outline:none; }
+  #cpop .cplab { display:flex; align-items:center; font-size:10px; text-transform:uppercase;
+                 letter-spacing:.16em; color:var(--warm); margin:9px 0 6px; }
+  #cpop .cplab button { flex:0 0 auto; margin-left:auto; width:20px; height:20px; padding:0;
+                        line-height:16px; font-size:14px; }
+  #cpop .cpsw { display:flex; gap:5px; }
+  #cpop .cpsw .sw { flex:0 0 20px; width:20px; height:20px; padding:0;
+                    border:1px solid #4a4a4a; border-radius:4px; cursor:pointer; }
+  #cpop .cpsw .sw:hover { border-color:var(--acc); }
+  #cpop .cpsw .none { color:#5c5c5c; font-size:11px; }
+  /* grid window: the desktop app's grid editor as a floating panel — a miniature
+     of the collage where cells are picked by plain click and merged/grouped/cut */
+  /* no overflow:hidden here — the message floats ABOVE the window's edge */
+  #gepop { position:fixed; z-index:620; display:none; width:312px;
+           background:#1c1c1c; border:1px solid #3a3a3a; border-radius:8px;
+           box-shadow:0 18px 50px rgba(0,0,0,.55); }
+  #gepop.open { display:block; }
+  #geHead { display:flex; align-items:center; gap:8px; padding:6px 6px 6px 12px;
+            border-bottom:1px solid #2e2e2e; cursor:move; }
+  #geHead .ttl { flex:1; font-size:11px; letter-spacing:.16em; text-transform:uppercase;
+                 color:var(--warm); user-select:none; }
+  #geHead #geCount { font-size:11px; color:#ffd166; user-select:none; }
+  #geBody { padding:10px; }
+  #geStage { display:flex; justify-content:center; margin-bottom:10px; }
+  #geCv { border:1px solid #3a3a3a; border-radius:4px; cursor:pointer; }
+  .gerow { display:flex; gap:6px; margin-bottom:6px; }
+  .gerow > button { flex:1; padding:8px; font-size:12px; }   /* every row the same height — red/green/neutral alike */
+  .gehint { color:#6f6f6f; font-size:11px; line-height:1.5; margin-top:8px; }
+  /* the window's own message: floats ABOVE the window (outside it, nothing is
+     covered), never changes the window's size, and leaves with a soft fade */
+  #geMsg { position:absolute; left:0; right:0; bottom:calc(100% + 8px); z-index:5;
+           padding:8px 11px; border-radius:6px;
+           background:#3a2c12; border:1px solid #7a5c1a; color:#ffd166;
+           font-size:12px; line-height:1.45; font-weight:600;
+           box-shadow:0 8px 22px rgba(0,0,0,.55);
+           opacity:0; visibility:hidden; pointer-events:none;
+           transition:opacity .3s ease, visibility .3s; }
+  #geMsg.on { opacity:1; visibility:visible; }
+  #geMsg.ok { background:#16301f; border-color:#2d5a41; color:#9fd8b4; }
+  /* split buttons: a drawing of the RESULT (two little cells) + a short word —
+     Lasha picked this over arrow glyphs (those were confusing; never bring them back) */
+  #gepop .icword { display:flex; align-items:center; justify-content:center; gap:8px; }
+  #gepop .pic svg { display:block; }
+  #gepop .pic rect { fill:none; stroke:#d6d6d6; stroke-width:1.6; }
+
+  /* confirm window: anything that wipes work (template click, Nowy, tray delete)
+     asks first — in OUR window, not the browser's. Centered over a dim veil. */
+  #askpop { position:fixed; inset:0; z-index:700; display:none;
+            background:rgba(0,0,0,.45); align-items:center; justify-content:center; }
+  #askpop.open { display:flex; }
+  #askwin { width:302px; background:#1c1c1c; border:1px solid #3a3a3a; border-radius:8px;
+            box-shadow:0 18px 50px rgba(0,0,0,.55); }
+  #askHead { display:flex; align-items:center; gap:8px; padding:6px 6px 6px 12px;
+             border-bottom:1px solid #2e2e2e; }
+  #askHead .ttl { flex:1; font-size:11px; letter-spacing:.16em; text-transform:uppercase;
+                  color:var(--warm); user-select:none; }
+  #askHead .cpx { flex:0 0 26px; width:26px; height:24px; padding:0; background:none;
+                  border:1px solid transparent; border-radius:5px; color:var(--dim);
+                  font-size:13px; line-height:1; cursor:pointer; }
+  #askHead .cpx:hover { background:#2b2b2b; border-color:#3d3d3d; color:var(--fg); }
+  #askMsg { padding:12px; color:#ddd; font-size:12.5px; line-height:1.55; }
+  #askRow { display:flex; gap:6px; padding:0 10px 10px; }
+  #askRow button { flex:1; padding:8px; font-size:12px; }
+
+  #tiles { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-bottom:8px; }
+  .tile { background:#242424; border:1px solid #333; border-radius:6px;
+          padding:5px; cursor:pointer; display:flex; justify-content:center; }
+  .tile:hover { border-color:#77372a; }
+  .tile.on { border-color:var(--acc); box-shadow:0 0 0 1px var(--acc); }
+
+  footer { flex:0 0 auto; background:var(--bar); border-top:1px solid var(--border);
+           display:flex; align-items:center; gap:10px; padding:8px 12px; min-height:88px; }
+  #thumbs { display:flex; gap:8px; overflow-x:auto; flex:1; }
+  .thumb { height:64px; border:1px solid #333; border-radius:6px;
+           cursor:grab; flex:0 0 auto; }
+  .thumb:hover { border-color:#77372a; }
+
+  #cmenu { position:fixed; z-index:50; background:#232323; border:1px solid #3d3d3d;
+           border-radius:8px; padding:4px; min-width:190px; box-shadow:0 8px 30px rgba(0,0,0,.6); }
+  #cmenu div { padding:6px 12px; border-radius:5px; cursor:pointer; color:#ddd; }
+  #cmenu div:hover { background:#333; color:#fff; }
+  #cmenu hr { border:none; border-top:1px solid #3d3d3d; margin:4px 6px; }
+
+  #ghost { position:fixed; z-index:60; pointer-events:none; opacity:.75;
+           border:1px solid #c0392b; border-radius:6px; height:64px; }
+</style>
+</head>
+<body>
+
+<header>
+  <span id="brand">CLA<b>MA</b> · Kolaż</span>
+  <div class="sep"></div>
+  <button class="tbtn" id="toEditB" hidden title="Wróć do edytora Clama (kolaż zostaje, wrócisz do niego)"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAACXBIWXMAAAsTAAALEwEAmpwYAAABwUlEQVR4nL2WsUoDQRCGAymUNCGQRGOdIGojPoFv4xMoPoNgmxRW+g76ANqJYEwwl5yCZQQVLDzbTyZOcLLZ3TOFDoTjZnf+f+efmb0UCv9tQBnoAGP9tcUX2V8CjoEn4B24ALZCm+tAn3nry5pnfw248+z/BDZj4PJsAi0gUV9mSRzwAbANVIAz9Z27sljwuiFN3EwU/EN9I2DFYFXV/2YJOj4pgGv1J4ZInveGNHFidtT/aAmkmGJNR7Yr4EZPXVcppjY070LSkEyM78hH0Ip0S9WcPFMwkaqnvgeVC61NyQa3F+iWoZzWaQ5bJ8lg1QXwFlnXKirTHLiHIJsDd07ZczSt/AJcQMXSIHiAJA3JEhjKmW6Kkfi6pREBH7ndlEcgsnTNyDci4JOCauaDUIwLbjVfywOPTPzsBQksAbehVuO776dzIHWq5Ux8xyU4NJt84Jkhr0UmXi5JsbFLIF0jths5eW636A08SwBsqPMVKAY0T036oYm3+9t24UCdp/pelExMZ0w093wz7MS7a2VXQ7ETIQFe+LGuU9DQh8lLPA16Zt5SLfxyjhTWvNJJwJ4CXgL7wHqoiCZmoT8Hf2Zfyi3o3xu5tfgAAAAASUVORK5CYII="><span>Edytor</span></button>
+  <div class="sep" id="toEditSep" hidden></div>
+  <button class="tbtn" id="newB" title="Nowy kolaż"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAACXBIWXMAAAsTAAALEwEAmpwYAAAAo0lEQVR4nO2QPQ6DMAxGM7VbO4HUqxRxgF6M/hwA7gVI7KByB6aHIpKtIYRElZDyJg/292wL8U+AM/ABRuxMQAVcXAQy3JUGSLcK9OZ3S5+mdZLoqa19QALUqu6AW1CBWOpUXaAvuQYV/JCUIoBgwMwUQvAAepPBW2AiCqzEF1mJLzrGi0bVk+0Iz9Xsd63phT/FmuAEvOUWO4LlzFNmuF7vxQwWfpJkI15Y1wAAAABJRU5ErkJggg=="><span>Nowy</span></button>
+  <div class="sep"></div>
+  <button class="tbtn" id="undoB" title="Cofnij (Ctrl+Z)"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAACXBIWXMAAAsTAAALEwEAmpwYAAAAwklEQVR4nO3UQWoCQRBG4QYDOUEkbhMvEfVs4pxBzA0iuYc7caULL6AnEBIE8ZPRDoQsdDpOr/Stq/9HVVEdwp1rQBMzTHKFL5yY1h3+hHkMX+L5Hn4EG9XZYY1P9EIGwV/e8ZC63NaZ2gZe0MdXfDOq0kVlyQ94+yXphkySQawfXxT859DwGmtXlQSpXwUeo2AbcoB2cgeJgiIKPnKEd/GNPTp1hTbiWIoYXjK8JnDiPMOLl5wo2JULLWde21jCTXIA3mvcwqxaTrgAAAAASUVORK5CYII="></button>
+  <button class="tbtn" id="redoB" title="Ponów (Ctrl+Y)"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAACXBIWXMAAAsTAAALEwEAmpwYAAAAvUlEQVR4nO3UwWlCQRSF4QHFDiK61DQR0ZSmWIQkHWj6cCeudGEDIQ0EBUH4ZHAkWYi+p85K//09P3OGe0N4kgtMMUc9l2DmwDKLBC9YJMkKzQeT4B1f+MFOcX4vBVfxWSKwtOAYvkYfbVRKVNS4VMsx/K1AjcXD00DsPNK/e3gkfWikFXIsGrZpqJblVPh7QTvkAJMkGOQS9JJgg04uycc/yRCv5/bgGkHc5JHzTO8h6mKM7xO36HbBk5DYA7gZ3MUJPbXRAAAAAElFTkSuQmCC"></button>
+  <div class="sep"></div>
+  <span id="status"></span>
+  <span class="grow"></span>
+  <button class="tbtn" id="prevB" title="Pokaż kolaż na czysto — bez oznaczeń"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAACXBIWXMAAAsTAAALEwEAmpwYAAABhUlEQVR4nO2Uu0oDURCGE9FCja2JsIGgxoeQWGhQ7IWgvoWxUStRsPDSi9pm06igQvQVRH2BgFECa2NaBS/wyYFZGA9Hd7XRIj8MHOafyzn/7kwi0ca/BjAALAJnQBN4FmuKrwxkflM4AxwAb0TjFdgH0nGLTwMtSX4BDoE5IAd0i+XEdyQNDB6Bqajis8C7JNSA4RgXygPnkmNyS18FjqnbrAJJxXlAFXgAAsA3PsUngTUlWcEu3gfcS8CmxWWVZBot3URit4VrAClNrAhxCXRaSVUlmSdmzga+FdsFXAu3pIm6OMcd0gXCZa1XGQSO+Anh6trZiNHAi9mg6GqwLM4rh0S+kigrFkpUcUh045IoBdwJsWUleT/4yDvC3QK99tMK6jddd/ymvshlrGJJ1gFsqOEctaULA0tq0Mzw5J2Bn3NGgAvJMatlJiphUsYeeZFZB/PAINAjNiS+Y2tVFKMuFDZJA3sq+TuYmF2gP1Zxx1YtA6cy6U9i5nwCLMTeom38GT4AvWoden7krwUAAAAASUVORK5CYII="><span>Podgląd</span></button>
+  <button class="tbtn" id="toClamaB" title="Wyślij kolaż do Clamy — pojawi się tam do wstawienia jako obraz"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAACXBIWXMAAAsTAAALEwEAmpwYAAABrUlEQVR4nNXUPWsVQRTG8cWABlJECMoVjIJB0I8g2NkJNoJiGlPFRkFBbLTRLq1FCi0U7ezSaHO1SaxCIPgSBT+BIgi+BCSoPxnuWRzGTW7udRsfWHbnzJn/mTNn51TV/yJM4AIWsYFnbUDHMYMnAc21MSx0DNNYwPcciC/ZeGkQ6ChO4SG+ZpCfeI4beBO2b/Ge7QcdwXHcweci/RVcxj7swcuwv4tM0jPRBN0R0Nv4UEDXcBNTmX8Of4tr8f24BE9ivgH6AtdxqGEzJTxl8zTGM6VzfX61c9rp0S2OrwnewY8o/Hi54HU4/4pdnMXObcI7Yb8UtoWmRQdwD+tZJu8x1+fMO9ncUtjP9bs4F+PsZVl1cX4L+GT4pQ2ObRqgCHYM94uskl5hb+F7NeYebQteLN6NK3Gp/v5Dej7LMXd64AC1IkhSt7BPxfGkyzhaDSu9+qwH7HBmT20i6cHQ8FpRk6S5zFYX/mT1r9IrfNJH7MKRGH/a7N4ME2Q1oGdwK77vtgIvbmw3azEnqrbkT7FrpQY50lqAqhcktZVa863CI8DBaJDp2d96gEH0G3aMLWC4TTuwAAAAAElFTkSuQmCC"><span>Do Clamy</span></button>
+  <div class="sep"></div>
+  <select id="fmt" title="Format pliku"><option value="jpg">JPG</option><option value="png">PNG</option></select>
+  <button id="dl" class="primary"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAACXBIWXMAAAsTAAALEwEAmpwYAAAArElEQVR4nO2UQQ6CMBAAe/IHEn2L8Xuo7/JGPOGBF8AHfMCY1S1pQjcIhUTQSXpamClNg3M/BXCVNWfgxT9gguLmgkUFeF/JG5BZAZnpM8OvLlCo7+4jYUDlMhOKMYEtUKqgAvY+EJntBgeMiCddHkSy4ChC2qNL/s/QjZhy0+Pf7PmShy5z56anL/Ap6w40OjskyI/qqGPDM9ORxwIb4CL1BHENnMQ19hS+jyc+9QyKzTFxQwAAAABJRU5ErkJggg=="><span>Pobierz</span></button>
+</header>
+
+<main>
+  <div id="col">
+    <div id="stage"><canvas id="cv"></canvas></div>
+    <footer>
+      <button id="addB">+ Dodaj zdjęcia</button>
+      <div id="thumbs"></div>
+    </footer>
+  </div>
+  <aside>
+    <div class="paneBox">
+      <h3>Układ</h3>
+      <div id="tiles"></div>
+      <div class="row"><button id="gridB" title="Okno z miniaturą kolażu — klikasz komórki i scalasz, łączysz, przecinasz lub rozdzielasz">Scal i połącz…</button></div>
+      <div class="hint">W oknie „Scal i połącz” klikasz komórki na miniaturze — bez Ctrl — i jednym przyciskiem scalasz je w jedną albo dajesz im wspólne zdjęcie.</div>
+    </div>
+
+    <div class="paneBox">
+      <h3>Właściwości</h3>
+      <div id="props">
+        <div class="grp">
+          <div class="grpHead"><span class="ar">▼</span><span>Linie</span></div>
+          <div class="grpBody">
+            <div class="prow"><label>Grubość</label><span class="val"><input type="number" id="sLine" min="0" max="160" step="1" value="24"></span></div>
+            <div class="prow"><label>Zaokrągl.</label><span class="val"><input type="number" id="sRad" min="0" max="160" step="1" value="0"></span></div>
+            <div class="prow"><label>Krycie %</label><span class="val"><input type="number" id="sAlpha" min="0" max="100" step="1" value="100"></span></div>
+            <div class="prow"><label>Kolor</label><span class="val"><button class="cswbtn" id="cLine" title="#ffffff"></button><button class="cpick" id="pLine" title="Pipeta — pobierz kolor z ekranu"><img alt=""></button></span></div>
+          </div>
+        </div>
+        <div class="grp">
+          <div class="grpHead" title="Całe płótno: proporcje, szerokość zapisywanego pliku i tło — tło widać w pustych komórkach i przez półprzezroczyste linie (Krycie)"><span class="ar">▼</span><span>Płótno</span></div>
+          <div class="grpBody">
+            <div class="prow"><label>Proporcje</label><span class="val"><select id="sRatio">
+              <option value="2:3">2:3 — pion</option>
+              <option value="4:5">4:5</option>
+              <option value="1:1">1:1 — kwadrat</option>
+              <option value="9:16">9:16 — stories</option>
+            </select></span></div>
+            <div class="prow"><label>Eksport px</label><span class="val"><input id="expw" type="number" value="2000" min="400" max="6000" step="100" title="Szerokość zapisywanego pliku (px)"></span></div>
+            <div class="prow"><label>Tło</label><span class="val"><button class="cswbtn" id="cBg" title="#e8ebf0"></button><button class="cpick" id="pBg" title="Pipeta — pobierz kolor z ekranu"><img alt=""></button></span></div>
+            <div class="brow">
+              <button id="bgPickB">Zdjęcie tła…</button>
+              <button id="bgClearB">Usuń tło</button>
+            </div>
+          </div>
+        </div>
+        <div class="grp">
+          <div class="grpHead" title="Przeciągnij zdjęcie = przesuwanie · kółko = zoom · pierścień: po łuku = obrót, odciągnij = zoom (100 px = ×2) · prawy klik = menu"><span class="ar">▼</span><span>Zaznaczone zdjęcie</span></div>
+          <div class="grpBody">
+            <div class="prow"><label>Zoom %</label><span class="val"><input type="number" id="sZoom" min="100" max="400" step="1" value="100"></span></div>
+            <div class="prow"><label>Obrót °</label><span class="val"><input type="number" id="sRot" min="-180" max="180" step="1" value="0"></span></div>
+            <div class="brow">
+              <button id="replB">Zamień zdjęcie</button>
+              <button id="swapB" title="Potem kliknij zdjęcie, z którym zamienić">Miejscami</button>
+            </div>
+            <div class="brow"><button id="remB">Usuń zdjęcie</button></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </aside>
+</main>
+
+<input type="file" id="fileIn" accept="image/*" multiple hidden>
+<div id="cmenu" hidden></div>
+
+<div id="gepop">
+  <div id="geHead">
+    <span class="ttl">Scal i połącz</span>
+    <span id="geCount"></span>
+    <button class="cpx" id="geClearB" title="Odznacz wszystkie komórki"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:block;margin:auto"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg></button>
+    <button class="cpx" id="geClose" title="Zamknij (Esc)">✕</button>
+  </div>
+  <div id="geBody">
+    <div id="geStage"><canvas id="geCv"></canvas></div>
+    <div class="gerow"><button id="geMergeB" class="primary" title="Zaznaczone komórki staną się JEDNĄ komórką (muszą razem tworzyć prostokąt)">Scal w jedną</button></div>
+    <div class="gerow"><button id="geGroupB" class="green" title="Zaznaczone komórki pokażą jedno wspólne zdjęcie — linie między nimi zostają">Wspólne zdjęcie</button></div>
+    <div class="gerow"><button id="geUngroupB" title="Każda z zaznaczonych komórek znów ze swoim zdjęciem">Rozdziel</button></div>
+    <div class="gerow">
+      <button id="geCutHB" class="icword" title="Przetnij każdą zaznaczoną komórkę na dwie: górną i dolną"><span class="pic"><svg width="22" height="16" viewBox="0 0 30 22"><rect x="1" y="1" width="28" height="8.6" rx="2"/><rect x="1" y="12.4" width="28" height="8.6" rx="2"/></svg></span>Góra i dół</button>
+      <button id="geCutVB" class="icword" title="Przetnij każdą zaznaczoną komórkę na dwie obok siebie"><span class="pic"><svg width="22" height="16" viewBox="0 0 30 22"><rect x="1" y="1" width="12.6" height="20" rx="2"/><rect x="16.4" y="1" width="12.6" height="20" rx="2"/></svg></span>Obok siebie</button>
+    </div>
+    <div class="gehint">Klik na miniaturze = zaznacz / odznacz komórkę (złota ramka). Ctrl+klik na dużym kolażu robi to samo.</div>
+  </div>
+  <div id="geMsg"></div>
+</div>
+
+<div id="cpop">
+  <div id="cpHead">
+    <span class="ttl" id="cpTitle">Kolor</span>
+    <button class="cpx" id="cpClose" title="Zamknij (Esc)">✕</button>
+  </div>
+  <div id="cpBody">
+    <div class="cprow">
+      <input type="color" id="cpNative" title="Wybierz własny kolor">
+      <input type="text" id="cpHex" maxlength="7" spellcheck="false" title="Kod hex">
+      <button class="cpx" id="cpPick" title="Pipeta — pobierz kolor z ekranu"><img alt=""></button>
+    </div>
+    <div class="cplab">Zapisane<button id="cpSave" title="Zapisz bieżący kolor">+</button></div>
+    <div class="cpsw" id="cpSaved"></div>
+    <div class="cplab">Ostatnie</div>
+    <div class="cpsw" id="cpRecent"></div>
+  </div>
+</div>
+
+<div id="askpop">
+  <div id="askwin">
+    <div id="askHead">
+      <span class="ttl" id="askTitle">Na pewno?</span>
+      <button class="cpx" id="askX" title="Zamknij (Esc)">✕</button>
+    </div>
+    <div id="askMsg"></div>
+    <div id="askRow">
+      <button id="askNo">Anuluj</button>
+      <button id="askYes" class="primary">Tak</button>
+    </div>
+  </div>
+</div>
+
+<script src="collage-photos.js"></script>
+<script>
+'use strict';
+// ============================================================================
+// CLAMA Kolaż — port of the Manoni desktop app's collage module.
+// The grid is a tree of cuts; cells are its leaves (stable numeric ids).
+// Cell fractions, the single "lines" layer (margin = gap = rounded corners),
+// groups (one photo spanning cells) and cover-fit pan/zoom follow
+// manoni_app/imaging/collage.py one to one.
+// ============================================================================
+
+const MIN_SPLIT = 0.08, HISTORY = 40, PREVIEW_SRC = 1000, ACC = '#c0392b';   // CLAMA's handle red
+const BASE_W = 2000;              // all px measures (line, radius) declared against this
+
+let NID = 1, IMGSEQ = 1;
+const L = () => ({ id: NID++ });
+const SP = (dir, pos, a, b) => ({ dir, pos, a, b });
+
+const PRESETS = [
+  { key:'split_h',  name:'Dwa — góra / dół',   make:()=>SP('h',.5,L(),L()) },
+  { key:'split_v',  name:'Dwa — obok siebie',  make:()=>SP('v',.5,L(),L()) },
+  { key:'thirds_h', name:'Trzy rzędy',         make:()=>SP('h',1/3,L(),SP('h',.5,L(),L())) },
+  { key:'grid_2x2', name:'Cztery',             make:()=>SP('h',.5,SP('v',.5,L(),L()),SP('v',.5,L(),L())) },
+  { key:'big_left', name:'Duże + dwa małe',    make:()=>SP('v',.6,L(),SP('h',.5,L(),L())) },
+  { key:'big_top',  name:'Duże + trzy',        make:()=>SP('h',.6,L(),SP('v',1/3,L(),SP('v',.5,L(),L()))) },
+];
+const RATIOS = [ ['2:3',2/3], ['4:5',4/5], ['1:1',1], ['9:16',9/16] ];
+
+const imgs = {};                 // imgId -> {full: Image, prev: canvas|Image}
+const tray = [];                 // [{imgId, el}]
+let S, sel = null, swapArm = null, dndOver = null;
+const multi = new Set();
+let undos = [], redos = [], kind = null, kindTimer = null;
+let dragPan = null, dragDiv = null, dragRot = null, trayDrag = null, pickTarget = null;
+let previewMode = false;
+
+const $ = id => document.getElementById(id);
+const cv = $('cv'), ctx = cv.getContext('2d');
+const dpr = () => window.devicePixelRatio || 1;
+
+/* CLAMA's fonts (fonts.js beside this file): DM Sans for the UI, Bellefair for the brand.
+   Missing fonts.js → the "Segoe UI" fallback in the CSS, nothing breaks. */
+if (window.FONT_CSS) {
+  const fs = document.createElement('style');
+  fs.textContent = window.FONT_CSS;
+  document.head.appendChild(fs);
+}
+
+/* pipeta — CLAMA's icon + EyeDropper helper, 1:1 (Chrome only; Esc-cancel swallowed) */
+const ICON_PIPETTE = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAACXBIWXMAAAsTAAALEwEAmpwYAAABCklEQVR4nNWUQQ6CMBBFYeEFSCRu4AacQb2ZchDEFXdRV5JI4l7cqRu3PlMzRFJBrVQTf9JAC7zP/EzrOP8gwANS4ASUwBTo2YL7QM6jJrbhORAAI5nvTGE9IAb2EkWqwX15LwQuwBFwTQzihhh0eL2ixLSCUj4cyl+uZDTB1dUzgbsSiyo9bHiuw2+mphVkAjjrAGDRFe4Dm6bcNYPZJ/A+sBbAFiiedM7BtHN8PVsZRS0uBR/LvOwEd+7rlcFnu1eLpQAGLXFlsqF2Cv7W+fMmvKjWjfRtuPck87xTnwto/jW4kvSwUmAdrlT1mdyHtuFRS1/nneHaUVxJxZUYHbkvDJZiElkB/lJX3dPxxGNVvJwAAAAASUVORK5CYII=';
+function eyedrop(apply) {
+  if (!window.EyeDropper) { toast('Pipeta działa tylko w Chrome/Edge'); return; }
+  new EyeDropper().open().then(r => apply(r.sRGBHex.toLowerCase())).catch(() => {});
+}
+document.querySelectorAll('.cpick img, #cpPick img').forEach(i => { i.src = ICON_PIPETTE; });
+
+/* the ✕ of every small window = CLAMA's icon (one copy, filled at runtime) */
+const ICON_X = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAACXBIWXMAAAsTAAALEwEAmpwYAAAAhklEQVR4nO2UQQqAIBBFvUSR9z+KO2lVkFCHeSHZptDGshbV3/p9D3QYpf58M4ABWqAWdOvQNTkCy5I+JQlw3/GxOYIK6MJFB2hBpxELjiRchacklIJHJCMwFINvJCvYZyoGTwh2H3/HE+mScOefRTLCp+EqfpYnkYwiVyRPrApz67L7867Mszmg1Nbc9e0AAAAASUVORK5CYII=';
+for (const id of ['cpClose', 'geClose', 'askX'])
+  $(id).innerHTML = '<img src="' + ICON_X + '" style="width:13px;height:13px;display:block;margin:auto;opacity:.8" alt="">';
+
+// --- Cursors -----------------------------------------------------------------
+// Icon cursors instead of the stock hand/cross: each is an SVG drawn twice — a
+// thick white underlay below a dark stroke — so it reads on any background,
+// white lines and dark photos alike.
+function svgCur(paths, hx, hy, fallback) {
+  const svg = "<svg xmlns='http://www.w3.org/2000/svg' width='26' height='26' viewBox='0 0 24 24'>"
+    + "<g fill='none' stroke='#ffffff' stroke-width='4.6' stroke-linecap='round' stroke-linejoin='round'>" + paths + "</g>"
+    + "<g fill='none' stroke='#1c1c1c' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'>" + paths + "</g>"
+    + "</svg>";
+  return 'url("data:image/svg+xml,' + encodeURIComponent(svg) + '") ' + hx + ' ' + hy + ', ' + fallback;
+}
+const CUR = {
+  move:   svgCur("<path d='M12 2.5v19M2.5 12h19'/><path d='m9 5.5 3-3 3 3'/><path d='m9 18.5 3 3 3-3'/><path d='M5.5 9l-3 3 3 3'/><path d='m18.5 9 3 3-3 3'/>", 13, 13, 'move'),
+  rotate: svgCur("<path d='M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8'/><path d='M21 3v5h-5'/>", 13, 13, 'alias'),
+  zoom:   svgCur("<circle cx='11' cy='11' r='8'/><path d='m21 21-4.35-4.35'/><path d='M11 8v6M8 11h6'/>", 12, 12, 'zoom-in'),
+  zoomOut:svgCur("<circle cx='11' cy='11' r='8'/><path d='m21 21-4.35-4.35'/><path d='M8 11h6'/>", 12, 12, 'zoom-out'),
+  swap:   svgCur("<path d='M8 3 4 7l4 4'/><path d='M4 7h16'/><path d='m16 21 4-4-4-4'/><path d='M20 17H4'/>", 13, 13, 'alias'),
+};
+
+function newCell() { return { imgId:null, zoom:1, ox:0, oy:0, angle:0 }; }
+
+function defaultState() {
+  NID = 1;
+  const grid = PRESETS[0].make();
+  const s = { grid, groups:[], ratio:2/3, line:24, radius:0,
+              lineColor:'#ffffff', lineAlpha:100, bg:'#e8ebf0', bgPhoto:null,
+              layout:PRESETS[0].key, cells:{} };
+  for (const { id } of gridRects(grid)) s.cells[id] = newCell();
+  return s;
+}
+
+// --- The tree ---------------------------------------------------------------
+
+function gridRects(node, rect = [0,0,1,1], out = []) {
+  if (!node.dir) { out.push({ id: node.id, r: rect }); return out; }
+  const [x,y,w,h] = rect;
+  const p = Math.min(1-MIN_SPLIT, Math.max(MIN_SPLIT, node.pos));
+  if (node.dir === 'h') {
+    gridRects(node.a, [x, y, w, h*p], out);
+    gridRects(node.b, [x, y+h*p, w, h*(1-p)], out);
+  } else {
+    gridRects(node.a, [x, y, w*p, h], out);
+    gridRects(node.b, [x+w*p, y, w*(1-p), h], out);
+  }
+  return out;
+}
+const leafOrderIds = () => gridRects(S.grid).map(o => o.id);
+
+function findLeaf(node, id) {
+  if (!node.dir) return node.id === id ? node : null;
+  return findLeaf(node.a, id) || findLeaf(node.b, id);
+}
+function findParentOfLeaf(node, id) {
+  if (!node.dir) return null;
+  if ((!node.a.dir && node.a.id === id) || (!node.b.dir && node.b.id === id)) return node;
+  return findParentOfLeaf(node.a, id) || findParentOfLeaf(node.b, id);
+}
+function leafIdsUnder(node, out = []) {
+  if (!node.dir) out.push(node.id);
+  else { leafIdsUnder(node.a, out); leafIdsUnder(node.b, out); }
+  return out;
+}
+function replaceNode(root, target, repl) {
+  if (root === target) return repl;
+  if (root.dir) {
+    root.a = replaceNode(root.a, target, repl);
+    root.b = replaceNode(root.b, target, repl);
+  }
+  return root;
+}
+function fixNid() {
+  NID = Math.max(NID, ...leafIdsUnder(S.grid).map(i => i + 1));
+}
+
+// --- Cells, groups, slots (port of imaging/collage.py) -----------------------
+
+// Each cell inset by half a line thickness inside a canvas itself inset by half:
+// one thickness between neighbours, one thickness to the border.
+function cellBoxes(W = cv.width, H = cv.height) {
+  const t = S.line * (W / BASE_W);
+  const iw = Math.max(1, W - t), ih = Math.max(1, H - t);
+  return gridRects(S.grid).map(({ id, r:[fx,fy,fw,fh] }) => {
+    const x0 = t + fx*iw, y0 = t + fy*ih;
+    const x1 = (fx+fw)*iw, y1 = (fy+fh)*ih;
+    return { id, box:[x0, y0, Math.max(x0+1, x1), Math.max(y0+1, y1)] };
+  });
+}
+
+function membersOf(id) {
+  for (const g of S.groups) if (g.includes(id)) return g;
+  return [id];
+}
+function leadOf(id) {
+  const m = membersOf(id);
+  if (m.length === 1) return id;
+  return m.find(i => S.cells[i] && S.cells[i].imgId) || m[0];
+}
+// Groups first (the lower layer singles may cover), then the loose cells.
+function slots() {
+  const ids = leafOrderIds();
+  const grouped = new Set(), out = [];
+  for (const g of S.groups) {
+    const members = ids.filter(id => g.includes(id));
+    if (members.length < 2) continue;
+    members.forEach(id => grouped.add(id));
+    out.push({ leadId: members.find(i => S.cells[i].imgId) || members[0], members });
+  }
+  for (const id of ids) if (!grouped.has(id)) out.push({ leadId:id, members:[id] });
+  return out;
+}
+function unionBox(boxes) {
+  return [ Math.min(...boxes.map(b=>b[0])), Math.min(...boxes.map(b=>b[1])),
+           Math.max(...boxes.map(b=>b[2])), Math.max(...boxes.map(b=>b[3])) ];
+}
+// The group's topmost member cell (ties → leftmost): the + circle lives there,
+// not at the union centre — that can land on a divider grip or over a cell
+// that isn't even in the group — Lasha 2026-07-14.
+function topBoxOf(boxes) {
+  let b = boxes[0];
+  for (const o of boxes)
+    if (o[1] < b[1] - .5 || (Math.abs(o[1] - b[1]) <= .5 && o[0] < b[0])) b = o;
+  return b;
+}
+
+// --- Render ------------------------------------------------------------------
+
+function rr(g, [x0,y0,x1,y1], rad) {
+  if (rad >= 1) g.roundRect(x0, y0, x1-x0, y1-y0, rad);
+  else g.rect(x0, y0, x1-x0, y1-y0);
+}
+
+function drawPhoto(g, cell, box, exp) {
+  const rec = imgs[cell.imgId];
+  if (!rec) return;
+  const img = exp ? rec.full : rec.prev;
+  const [x0,y0,x1,y1] = box, cw = x1-x0, ch = y1-y0;
+  if (cw <= 0 || ch <= 0) return;
+  const zoom = Math.max(1, cell.zoom || 1);
+  const a = (cell.angle || 0) * Math.PI / 180;
+  if (a) {
+    // The cell's rotated bounding box must fit inside the photo — the scale that
+    // keeps a TURNED photo covering the cell (port of the desktop _fit_cell).
+    const ca = Math.abs(Math.cos(a)), sa = Math.abs(Math.sin(a));
+    const s = Math.max((cw*ca + ch*sa) / img.width,
+                       (cw*sa + ch*ca) / img.height) * zoom;
+    const nw = img.width*s, nh = img.height*s;
+    g.save();
+    g.translate(x0 + cw/2 + (cell.ox||0)*cw, y0 + ch/2 + (cell.oy||0)*ch);
+    g.rotate(a);
+    g.drawImage(img, -nw/2, -nh/2, nw, nh);
+    g.restore();
+    return;
+  }
+  const s = Math.max(cw/img.width, ch/img.height) * zoom;
+  const nw = img.width*s, nh = img.height*s;
+  g.drawImage(img, x0 + (cw-nw)/2 + (cell.ox||0)*cw,
+                   y0 + (ch-nh)/2 + (cell.oy||0)*ch, nw, nh);
+}
+
+function render(g, W, H, exp) {
+  g.fillStyle = S.bg; g.fillRect(0, 0, W, H);
+  if (S.bgPhoto && S.bgPhoto.imgId) drawPhoto(g, S.bgPhoto, [0,0,W,H], exp);
+  const rects = cellBoxes(W, H);
+  const byId = {}; rects.forEach(o => byId[o.id] = o.box);
+  const rad = S.radius * (W / BASE_W);
+  const filled = new Set();
+  for (const { leadId, members } of slots()) {
+    const cell = S.cells[leadId];
+    if (!cell || !cell.imgId) continue;
+    const part = members.map(id => byId[id]).filter(Boolean);
+    if (!part.length) continue;
+    members.forEach(id => filled.add(id));
+    const sb = unionBox(part);
+    // Clip = each member cell exactly, with its own rounding. Line gaps and
+    // corners are collage GEOMETRY and treat a grouped cell like a loose one
+    // (Lasha); grouping only means the shared photo spans the union box
+    // behind those windows — it never bleeds into gaps or foreign cells.
+    g.save(); g.beginPath();
+    for (const b of part) rr(g, b, rad);
+    g.clip();
+    drawPhoto(g, cell, sb, exp);
+    g.restore();
+  }
+  if (!exp) veil(g, rects.filter(o => !filled.has(o.id)).map(o => o.box), rad);
+  if (S.lineAlpha > 0) {           // the lines: the canvas minus the cells, one layer
+    g.save();
+    g.globalAlpha = S.lineAlpha / 100;
+    g.fillStyle = S.lineColor;
+    g.beginPath(); g.rect(0, 0, W, H);
+    for (const { box } of rects) rr(g, box, rad);
+    g.fill('evenodd');
+    g.restore();
+  }
+}
+
+// The chequer that says "empty" on screen (never exported): with white lines on a
+// white background an empty cell is invisible, and a grouped photo running under
+// one would pass it off as filled.
+function veil(g, boxes, rad) {
+  const sq = 14 * dpr();
+  for (const b of boxes) {
+    const [x0,y0,x1,y1] = b;
+    if (x1 <= x0 || y1 <= y0) continue;
+    g.save(); g.beginPath(); rr(g, b, rad); g.clip();
+    g.globalAlpha = .47;
+    g.fillStyle = '#ffffff'; g.fillRect(x0, y0, x1-x0, y1-y0);
+    g.fillStyle = '#c8ced6';
+    for (let r = 0, y = y0; y < y1; y += sq, r++)
+      for (let c = 0, x = x0; x < x1; x += sq, c++)
+        if ((r + c) % 2) g.fillRect(x, y, Math.min(sq, x1-x), Math.min(sq, y1-y));
+    g.restore();
+  }
+}
+
+function overlay(g) {
+  const rects = cellBoxes();
+  const byId = {}; rects.forEach(o => byId[o.id] = o.box);
+  const k = dpr();
+  for (const { leadId, members } of slots()) {
+    const part = members.map(id => byId[id]).filter(Boolean);
+    if (!part.length) continue;
+    if (!S.cells[leadId].imgId) {                       // the + of an empty slot
+      // Only the topmost member cell carries the +; the rest stay bare (veil).
+      const [tx0,ty0,tx1,ty1] = topBoxOf(part);
+      const cx = (tx0+tx1)/2, cy = (ty0+ty1)/2, r = 14*k;
+      g.strokeStyle = ACC; g.lineWidth = 2*k;
+      g.beginPath(); g.arc(cx, cy, r, 0, 7); g.stroke();
+      g.beginPath();
+      g.moveTo(cx-r*.45, cy); g.lineTo(cx+r*.45, cy);
+      g.moveTo(cx, cy-r*.45); g.lineTo(cx, cy+r*.45); g.stroke();
+    }
+    // Outlines trace every member cell separately — a union rect over an
+    // L-shaped group would also frame cells that are not in the group.
+    const strokeParts = (w, dash) => {
+      g.strokeStyle = ACC; g.lineWidth = w*k;
+      if (dash) g.setLineDash(dash);
+      for (const [x0,y0,x1,y1] of part) g.strokeRect(x0, y0, x1-x0, y1-y0);
+      if (dash) g.setLineDash([]);
+    };
+    if (dndOver === leadId) strokeParts(4);
+    else if (swapArm === leadId) strokeParts(3, [6*k, 4*k]);
+    else if (sel === leadId) strokeParts(2);
+  }
+  for (const id of multi) {                             // the Ctrl+click marks
+    const b = byId[id]; if (!b) continue;
+    g.strokeStyle = '#ffd166'; g.lineWidth = 2*k; g.setLineDash([4*k, 3*k]);
+    g.strokeRect(b[0], b[1], b[2]-b[0], b[3]-b[1]); g.setLineDash([]);
+  }
+  drawGrips(g, k);
+  const rp = rotHandlePos();                            // the rotation ring
+  if (rp) {
+    g.strokeStyle = ACC; g.lineWidth = 1.5*k;
+    g.beginPath(); g.moveTo(rp.cx, rp.cy); g.lineTo(rp.hx, rp.hy); g.stroke();
+    g.beginPath(); g.arc(rp.cx, rp.cy, 3*k, 0, 7); g.fillStyle = ACC; g.fill();
+    g.beginPath(); g.arc(rp.hx, rp.hy, 7*k, 0, 7);
+    g.fillStyle = '#1c1c1c'; g.fill();
+    g.lineWidth = 2*k; g.stroke();
+    // A live zoom pull: the duplicate ring in the hand, tethered to the anchor,
+    // with the exact percentage beside it. All of it vanishes on release.
+    if (dragRot && dragRot.mode === 'zoom' && dragRot.dupX !== null) {
+      g.strokeStyle = ACC; g.lineWidth = 1.5*k; g.setLineDash([5*k, 4*k]);
+      g.beginPath(); g.moveTo(rp.hx, rp.hy); g.lineTo(dragRot.dupX, dragRot.dupY);
+      g.stroke(); g.setLineDash([]);
+      g.beginPath(); g.arc(dragRot.dupX, dragRot.dupY, 7*k, 0, 7);
+      g.fillStyle = '#1c1c1c'; g.fill();
+      g.lineWidth = 2*k; g.stroke();
+      const cell = S.cells[dragRot.id];
+      const label = Math.round(((cell && cell.zoom) || 1) * 100) + '%';
+      g.font = (11*k) + 'px Segoe UI';
+      const tw = g.measureText(label).width;
+      const lx = dragRot.dupX + 14*k, ly = dragRot.dupY - 14*k;
+      g.beginPath(); g.roundRect(lx - 5*k, ly - 12*k, tw + 10*k, 17*k, 4*k);
+      g.fillStyle = '#1c1c1c'; g.fill();
+      g.lineWidth = 1*k; g.strokeStyle = ACC; g.stroke();
+      g.fillStyle = '#e8e8e8';
+      g.fillText(label, lx, ly);
+    }
+  }
+}
+
+// The grip pills on the dividers: obviously UI chrome, obviously not part of the
+// line — a dark capsule with two accent arrows along the axis the line moves in.
+function drawGrips(g, k) {
+  const W = cv.width, H = cv.height;
+  const t = S.line * (W / BASE_W);
+  const iw = Math.max(1, W - t), ih = Math.max(1, H - t);
+  (function walk(node, rx, ry, rw, rh) {
+    if (!node.dir) return;
+    const p = Math.min(1-MIN_SPLIT, Math.max(MIN_SPLIT, node.pos));
+    let gx, gy;
+    if (node.dir === 'v') { gx = (rx+rw*p)*iw + t/2; gy = (ry+rh/2)*ih + t/2; }
+    else { gx = (rx+rw/2)*iw + t/2; gy = (ry+rh*p)*ih + t/2; }
+    const hw = node.dir === 'v' ? 15*k : 8*k;
+    const hh = node.dir === 'v' ? 8*k : 15*k;
+    g.beginPath(); g.roundRect(gx-hw, gy-hh, hw*2, hh*2, Math.min(hw, hh));
+    g.fillStyle = '#1c1c1c'; g.fill();
+    g.lineWidth = 1.5*k; g.strokeStyle = ACC; g.stroke();
+    g.fillStyle = ACC;
+    const a = 3.5*k, off = 7*k;
+    g.beginPath();
+    if (node.dir === 'v') {
+      g.moveTo(gx-off-a, gy); g.lineTo(gx-off+a, gy-a); g.lineTo(gx-off+a, gy+a);
+      g.moveTo(gx+off+a, gy); g.lineTo(gx+off-a, gy-a); g.lineTo(gx+off-a, gy+a);
+    } else {
+      g.moveTo(gx, gy-off-a); g.lineTo(gx-a, gy-off+a); g.lineTo(gx+a, gy-off+a);
+      g.moveTo(gx, gy+off+a); g.lineTo(gx-a, gy+off-a); g.lineTo(gx+a, gy+off-a);
+    }
+    g.fill();
+    if (node.dir === 'v') { walk(node.a, rx, ry, rw*p, rh); walk(node.b, rx+rw*p, ry, rw*(1-p), rh); }
+    else { walk(node.a, rx, ry, rw, rh*p); walk(node.b, rx, ry+rh*p, rw, rh*(1-p)); }
+  })(S.grid, 0, 0, 1, 1);
+}
+
+// The grip under (x, y) — an explicit handle beats seam proximity.
+function gripHit(x, y) {
+  const W = cv.width, H = cv.height, k = dpr();
+  const t = S.line * (W / BASE_W);
+  const iw = Math.max(1, W - t), ih = Math.max(1, H - t);
+  let hit = null;
+  (function walk(node, rx, ry, rw, rh) {
+    if (!node.dir || hit) return;
+    const p = Math.min(1-MIN_SPLIT, Math.max(MIN_SPLIT, node.pos));
+    let gx, gy, hw, hh;
+    if (node.dir === 'v') { gx = (rx+rw*p)*iw + t/2; gy = (ry+rh/2)*ih + t/2; hw = 17*k; hh = 10*k; }
+    else { gx = (rx+rw/2)*iw + t/2; gy = (ry+rh*p)*ih + t/2; hw = 10*k; hh = 17*k; }
+    if (Math.abs(x - gx) <= hw && Math.abs(y - gy) <= hh) { hit = { node, rx, ry, rw, rh }; return; }
+    if (node.dir === 'v') { walk(node.a, rx, ry, rw*p, rh); walk(node.b, rx+rw*p, ry, rw*(1-p), rh); }
+    else { walk(node.a, rx, ry, rw, rh*p); walk(node.b, rx, ry+rh*p, rw, rh*(1-p)); }
+  })(S.grid, 0, 0, 1, 1);
+  return hit;
+}
+
+// Where the selected photo's rotation ring sits (slot centre + a short stem).
+function rotHandlePos() {
+  if (sel === null) return null;
+  const cell = S.cells[sel];
+  if (!cell || !cell.imgId) return null;
+  const b = slotBoxOf(sel);
+  if (!b) return null;
+  const k = dpr();
+  const cx = (b[0]+b[2])/2, cy = (b[1]+b[3])/2;
+  const R = Math.max(24*k, Math.min(46*k, (b[3]-b[1])/2 - 10*k, (b[2]-b[0])/2 - 10*k));
+  const a = (cell.angle || 0) * Math.PI / 180;
+  return { cx, cy, hx: cx + R*Math.sin(a), hy: cy - R*Math.cos(a) };
+}
+
+let rafQ = false;
+function paint() {
+  if (rafQ) return;
+  rafQ = true;
+  requestAnimationFrame(() => {
+    rafQ = false;
+    render(ctx, cv.width, cv.height, previewMode);
+    if (!previewMode) overlay(ctx);
+    geDraw();                      // the grid window mirrors every change
+  });
+}
+
+function layoutCanvas() {
+  const st = $('stage'), m = 28;
+  const vw = Math.max(60, st.clientWidth - 2*m), vh = Math.max(60, st.clientHeight - 2*m);
+  let w = vw, h = w / S.ratio;
+  if (h > vh) { h = vh; w = h * S.ratio; }
+  const k = dpr();
+  cv.style.width = w + 'px'; cv.style.height = h + 'px';
+  cv.width = Math.round(w * k); cv.height = Math.round(h * k);
+  paint();
+}
+
+// --- History -----------------------------------------------------------------
+
+function snap() {
+  return JSON.stringify({ ...S, _sel: sel });
+}
+function pushUndo() {
+  kind = null;
+  undos.push(snap());
+  if (undos.length > HISTORY) undos.shift();
+  redos.length = 0;
+}
+// One entry per gesture RUN (a wheel burst, one slider drag), not per tick.
+function kindPush(k) {
+  clearTimeout(kindTimer);
+  kindTimer = setTimeout(() => kind = null, 600);
+  if (k === kind) return;
+  kind = k;
+  undos.push(snap());
+  if (undos.length > HISTORY) undos.shift();
+  redos.length = 0;
+}
+function restoreSnap(js) {
+  closeColorPop();                 // a restored state invalidates the open picker
+  const d = JSON.parse(js);
+  sel = d._sel; delete d._sel;
+  S = d;
+  multi.clear(); swapArm = null; kind = null;
+  fixNid(); syncPanel(); layoutCanvas();
+}
+function undo() {
+  if (!undos.length) return toast('Nie ma czego cofnąć');
+  redos.push(snap()); restoreSnap(undos.pop());
+}
+function redo() {
+  if (!redos.length) return toast('Nie ma czego ponowić');
+  undos.push(snap()); restoreSnap(redos.pop());
+}
+
+// --- Images ------------------------------------------------------------------
+
+function makePrev(img) {
+  const k = Math.min(1, PREVIEW_SRC / Math.max(img.width, img.height));
+  if (k >= 1) return img;
+  const c = document.createElement('canvas');
+  c.width = Math.max(1, Math.round(img.width * k));
+  c.height = Math.max(1, Math.round(img.height * k));
+  c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+  return c;
+}
+function addImage(src) {                    // src = data URI (file:// images would taint)
+  return new Promise((res, rej) => {
+    const img = new Image();
+    img.onload = () => {
+      const id = 'i' + (IMGSEQ++);
+      imgs[id] = { full: img, prev: makePrev(img) };
+      res(id);
+    };
+    img.onerror = rej;
+    img.src = src;
+  });
+}
+function addFromFile(file) {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => addImage(r.result).then(res, rej);
+    r.onerror = rej;
+    r.readAsDataURL(file);
+  });
+}
+
+function trayAdd(imgId) {
+  const rec = imgs[imgId];
+  const c = document.createElement('canvas');
+  const k = 128 / Math.max(rec.prev.width, rec.prev.height);
+  c.width = Math.max(1, Math.round(rec.prev.width * k));
+  c.height = Math.max(1, Math.round(rec.prev.height * k));
+  c.getContext('2d').drawImage(rec.prev, 0, 0, c.width, c.height);
+  c.className = 'thumb';
+  c.style.cursor = CUR.move;
+  c.title = 'Przeciągnij na komórkę · klik = do zaznaczonej · prawy klik = menu';
+  const item = { imgId, el: c };
+  c.addEventListener('pointerdown', e => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    trayDrag = { imgId, x: e.clientX, y: e.clientY, ghost: null };
+  });
+  c.addEventListener('contextmenu', e => {
+    e.preventDefault();
+    showMenu(e.clientX, e.clientY, [
+      ['Do zaznaczonej komórki', () => {
+        if (sel === null || !S.cells[sel]) return toast('Najpierw kliknij komórkę w kolażu');
+        pushUndo();
+        assignPhoto(sel, imgId);
+      }],
+      ['Duplikuj', () => trayAdd(imgId)],
+      null,
+      ['Usuń z półki', () => {
+        // no Ctrl+Z on the tray — this really is gone, so it asks first
+        uiConfirm('Usuwanie', 'Usunąć to zdjęcie z półki?', 'Usuń', () => {
+          c.remove();
+          const n = tray.indexOf(item);
+          if (n >= 0) tray.splice(n, 1);
+        });
+      }],
+    ]);
+  });
+  tray.push(item);
+  $('thumbs').appendChild(c);
+}
+
+function hasPhotos() {
+  return Object.values(S.cells).some(c => c.imgId) || !!(S.bgPhoto && S.bgPhoto.imgId);
+}
+
+// --- Actions -------------------------------------------------------------------
+
+function assignPhoto(cellId, imgId) {
+  S.cells[cellId] = { imgId, zoom:1, ox:0, oy:0, angle:0 };
+  sel = cellId;
+  syncPanel(); paint();
+}
+
+function pickFiles(target) {                // target: cell id | 'bg' | null (the tray)
+  pickTarget = target;
+  $('fileIn').multiple = target !== 'bg';
+  $('fileIn').click();
+}
+$('fileIn').addEventListener('change', async e => {
+  const files = [...e.target.files];
+  e.target.value = '';
+  if (!files.length) return;
+  const ids = [];
+  for (const f of files) {
+    try { ids.push(await addFromFile(f)); }
+    catch { toast('Nie udało się otworzyć zdjęcia'); }
+  }
+  if (!ids.length) return;
+  ids.forEach(trayAdd);              // the shelf mirrors every photo the collage gets
+  if (pickTarget === 'bg') {
+    pushUndo();
+    S.bgPhoto = { imgId: ids[0], zoom:1, ox:0, oy:0 };
+    syncPanel(); paint();
+  } else if (pickTarget !== null && S.cells[pickTarget]) {
+    pushUndo();
+    assignPhoto(pickTarget, ids[0]);
+  }
+  pickTarget = null;
+});
+
+// In-app confirm window. Born after a stray template click wiped Lasha's
+// assembled collage — anything that destroys work asks here first (never the
+// browser's confirm). Esc / veil click / Anuluj = no; Anuluj holds focus so a
+// stray Enter is also a no.
+const askpop = $('askpop');
+let askOk = null;
+function uiConfirm(title, msg, okLabel, onOk) {
+  $('askTitle').textContent = title;
+  $('askMsg').textContent = msg;
+  $('askYes').textContent = okLabel;
+  askOk = onOk;
+  askpop.classList.add('open');
+  $('askNo').focus();
+}
+function askClose() { askpop.classList.remove('open'); askOk = null; }
+$('askNo').addEventListener('click', askClose);
+$('askX').addEventListener('click', askClose);
+$('askYes').addEventListener('click', () => { const f = askOk; askClose(); if (f) f(); });
+askpop.addEventListener('mousedown', e => { if (e.target === askpop) askClose(); });
+
+// Only nag when there is something to lose: a photo placed anywhere, or a
+// custom-cut grid (merge/split clears S.layout). A fresh empty canvas applies
+// templates without questions.
+const hasWork = () => hasPhotos() || S.layout === '';
+
+function applyPreset(p) {
+  pushUndo();
+  const old = leafOrderIds().map(id => S.cells[id]);
+  S.grid = p.make();
+  S.groups = [];
+  S.layout = p.key;
+  const ids = leafOrderIds();
+  S.cells = {};
+  ids.forEach((id, k) => S.cells[id] = old[k] || newCell());
+  sel = ids[0]; multi.clear();
+  syncPanel(); paint();
+}
+
+function cleanGroups() {
+  const live = new Set(leafOrderIds());
+  S.groups = S.groups.map(g => g.filter(id => live.has(id))).filter(g => g.length > 1);
+}
+
+// --- The grid window's four edits (they act on the `multi` selection) ---------
+// Port of the desktop app's grid editor (ui/gridedit.py), reshaped to Lasha's ask:
+// pick cells by plain click on a miniature, then one button does the thing.
+
+// Feedback INSIDE the window: the header status line is too far away to notice
+// (Lasha never saw it). Amber strip = warning/refusal, green = the thing was done.
+let geMsgTimer = null;
+function geToast(msg, ok) {
+  toast(msg);                       // the header line still mirrors it
+  const m = $('geMsg');
+  m.textContent = msg;
+  m.classList.add('on');
+  m.classList.toggle('ok', !!ok);
+  clearTimeout(geMsgTimer);
+  geMsgTimer = setTimeout(() => m.classList.remove('on'), 5000);
+}
+
+const GTOL = 1e-4;                // seams that far apart (in fractions) count as one
+const MAX_CELLS = 12;             // the collage will not grow past this many cells
+const MIN_CELL = 0.07;            // no cut may leave a piece thinner than 7% of the canvas
+
+// Rebuild a tree of cuts over a set of leaf rects (fractions): find a straight
+// line no rect crosses, split, recurse. Returns null if no such line exists.
+function buildTreeFromRects(items, x0, y0, x1, y1) {
+  if (items.length === 1) return { id: items[0].id };
+  for (const dir of ['v', 'h']) {
+    const lo = dir === 'v' ? x0 : y0, hi = dir === 'v' ? x1 : y1;
+    const edges = [...new Set(items.map(it => dir === 'v' ? it.r[0] + it.r[2] : it.r[1] + it.r[3]))]
+      .filter(c => c > lo + GTOL && c < hi - GTOL).sort((p, q) => p - q);
+    for (const c of edges) {
+      const a = [], b = [];
+      let ok = true;
+      for (const it of items) {
+        const s = dir === 'v' ? it.r[0] : it.r[1];
+        const e = dir === 'v' ? it.r[0] + it.r[2] : it.r[1] + it.r[3];
+        if (e <= c + GTOL) a.push(it);
+        else if (s >= c - GTOL) b.push(it);
+        else { ok = false; break; }
+      }
+      if (!ok || !a.length || !b.length) continue;
+      const na = dir === 'v' ? buildTreeFromRects(a, x0, y0, c, y1) : buildTreeFromRects(a, x0, y0, x1, c);
+      const nb = dir === 'v' ? buildTreeFromRects(b, c, y0, x1, y1) : buildTreeFromRects(b, x0, c, x1, y1);
+      if (na && nb) return { dir, pos: (c - lo) / (hi - lo), a: na, b: nb };
+    }
+  }
+  return null;
+}
+
+// TRUE merge: the chosen cells become ONE cell. They must tile a rectangle;
+// the tree is rebuilt around that rectangle, every other cell keeps its id
+// (and so its photo). The photo of the first filled chosen cell survives.
+function geMerge() {
+  const all = gridRects(S.grid);
+  const chosen = all.filter(o => multi.has(o.id));
+  if (chosen.length < 2) return geToast('Zaznacz co najmniej 2 komórki');
+  const ux0 = Math.min(...chosen.map(o => o.r[0]));
+  const uy0 = Math.min(...chosen.map(o => o.r[1]));
+  const ux1 = Math.max(...chosen.map(o => o.r[0] + o.r[2]));
+  const uy1 = Math.max(...chosen.map(o => o.r[1] + o.r[3]));
+  const area = chosen.reduce((s, o) => s + o.r[2] * o.r[3], 0);
+  if (Math.abs(area - (ux1 - ux0) * (uy1 - uy0)) > GTOL)
+    return geToast('Zaznaczone komórki muszą razem tworzyć prostokąt');
+  const leadId = chosen.map(o => o.id).find(id => S.cells[id] && S.cells[id].imgId) || chosen[0].id;
+  const rest = all.filter(o => !multi.has(o.id))
+    .concat([{ id: leadId, r: [ux0, uy0, ux1 - ux0, uy1 - uy0] }]);
+  const tree = buildTreeFromRects(rest, 0, 0, 1, 1);
+  if (!tree) return geToast('Tego układu nie da się tak scalić');
+  pushUndo();
+  S.grid = tree;
+  for (const o of chosen) if (o.id !== leadId) delete S.cells[o.id];
+  cleanGroups();
+  S.layout = '';
+  sel = leadId;
+  multi.clear();                   // every operation ends with a clean selection
+  fixNid();
+  syncPanel(); paint();
+  geToast('Scalono komórki: ' + chosen.length + ' → 1', true);
+}
+
+function geGroup() {
+  const order = leafOrderIds().filter(id => multi.has(id));
+  if (order.length < 2) return geToast('Zaznacz co najmniej 2 komórki');
+  pushUndo();
+  S.groups = S.groups.map(g => g.filter(id => !multi.has(id))).filter(g => g.length > 1);
+  const leadId = order.find(id => S.cells[id].imgId) || order[0];
+  for (const id of order)                       // one photo per slot: followers empty
+    if (id !== leadId && S.cells[id].imgId) S.cells[id] = newCell();
+  S.groups.push(order);
+  sel = leadId;
+  multi.clear();                   // every operation ends with a clean selection
+  syncPanel(); paint();
+  geToast('Wspólne zdjęcie dla komórek: ' + order.length, true);
+}
+
+function geUngroup() {
+  if (!S.groups.some(g => g.some(id => multi.has(id))))
+    return geToast('Nic z zaznaczonych nie jest połączone');
+  pushUndo();
+  const before = S.groups.length;
+  S.groups = S.groups.filter(g => !g.some(id => multi.has(id)));
+  multi.clear();                   // every operation ends with a clean selection
+  syncPanel(); paint();
+  geToast('Rozdzielono grupy: ' + (before - S.groups.length), true);
+}
+
+function geSplit(dir) {
+  const ids = leafOrderIds().filter(id => multi.has(id));
+  if (!ids.length) return geToast('Zaznacz komórkę na miniaturze');
+  const rectOf = {};
+  gridRects(S.grid).forEach(o => rectOf[o.id] = o.r);
+  const fit = [], small = [];      // a cut that would leave slivers is refused
+  for (const id of ids)
+    ((dir === 'h' ? rectOf[id][3] : rectOf[id][2]) / 2 >= MIN_CELL ? fit : small).push(id);
+  if (!fit.length) return geToast('Za małe komórki — nie da się ich już przeciąć');
+  const room = MAX_CELLS - leafOrderIds().length;
+  if (room < 1) return geToast('Limit kolażu: ' + MAX_CELLS + ' komórek');
+  const todo = fit.slice(0, room);
+  pushUndo();
+  for (const id of todo) {
+    const lf = findLeaf(S.grid, id);
+    if (!lf) continue;
+    const nid = NID++;
+    S.grid = replaceNode(S.grid, lf, { dir, pos:.5, a:{ id }, b:{ id: nid } });
+    S.cells[nid] = newCell();
+  }
+  S.layout = '';
+  multi.clear();                   // every operation ends with a clean selection
+  syncPanel(); paint();
+  if (small.length || todo.length < fit.length) {
+    const why = [];
+    if (small.length) why.push(small.length + ' za małe');
+    if (todo.length < fit.length) why.push('limit ' + MAX_CELLS + ' komórek');
+    geToast('Przecięto: ' + todo.length + ' · pominięto: ' + why.join(', '));
+  } else {
+    geToast('Przecięto komórki: ' + todo.length, true);
+  }
+}
+
+function ungroupSel() {
+  if (sel === null) return;
+  const gi = S.groups.findIndex(g => g.includes(sel));
+  if (gi < 0) return toast('To zdjęcie nie jest połączone');
+  pushUndo();
+  S.groups.splice(gi, 1);
+  syncPanel(); paint();
+}
+
+function armSwap() {
+  if (sel === null || !S.cells[sel].imgId) return toast('Najpierw kliknij zdjęcie');
+  swapArm = sel;
+  toast('Kliknij zdjęcie, z którym zamienić (Esc = anuluj)');
+  paint();
+}
+function doSwap(rawId) {
+  const i = swapArm;
+  swapArm = null;
+  const j = rawId === null ? null : leadOf(rawId);
+  if (j === null || j === i) { toast('Zamiana anulowana'); paint(); return; }
+  pushUndo();
+  [S.cells[i], S.cells[j]] = [S.cells[j], S.cells[i]];
+  sel = j;
+  syncPanel(); paint();
+}
+
+function removePhoto() {
+  if (sel === null || !S.cells[sel].imgId) return;
+  pushUndo();
+  S.cells[sel] = newCell();
+  syncPanel(); paint();
+}
+
+function setBgFromCell() {
+  const c = S.cells[sel];
+  if (!c || !c.imgId) return;
+  pushUndo();
+  S.bgPhoto = { imgId: c.imgId, zoom:1, ox:0, oy:0 };
+  S.cells[sel] = newCell();
+  syncPanel(); paint();
+}
+
+function exportFile() {
+  if (!hasPhotos()) return toast('Najpierw dodaj zdjęcie do kolażu');
+  const W = Math.max(400, Math.min(6000, parseInt($('expw').value) || 2000));
+  const H = Math.round(W / S.ratio);
+  const c = document.createElement('canvas');
+  c.width = W; c.height = H;
+  render(c.getContext('2d'), W, H, true);
+  const png = $('fmt').value === 'png';
+  c.toBlob(b => {
+    if (!b) return toast('Eksport nie powiódł się');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(b);
+    a.download = 'clama-kolaz.' + (png ? 'png' : 'jpg');
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    toast('Pobrano: ' + a.download + ' (' + W + '×' + H + ')');
+  }, png ? 'image/png' : 'image/jpeg', 0.95);
+}
+
+// --- Hit-testing ----------------------------------------------------------------
+
+function pt(e) {
+  const k = dpr();
+  return { x: e.offsetX * k, y: e.offsetY * k };
+}
+function cellHit(x, y) {
+  for (const { id, box:[x0,y0,x1,y1] } of cellBoxes())
+    if (x >= x0 && x <= x1 && y >= y0 && y <= y1) return id;
+  return null;
+}
+function slotBoxOf(lid) {
+  const byId = {};
+  cellBoxes().forEach(o => byId[o.id] = o.box);
+  const part = membersOf(lid).map(id => byId[id]).filter(Boolean);
+  return part.length ? unionBox(part) : null;
+}
+// Centre of the slot's + circle — the topmost member cell, matching overlay().
+// The click zone and the finger cursor must follow the drawn circle.
+function plusCenterOf(lid) {
+  const byId = {};
+  cellBoxes().forEach(o => byId[o.id] = o.box);
+  const part = membersOf(lid).map(id => byId[id]).filter(Boolean);
+  if (!part.length) return null;
+  const b = topBoxOf(part);
+  return { x:(b[0]+b[2])/2, y:(b[1]+b[3])/2 };
+}
+
+// The seam a split draws sits at f*iw + t/2 (see cellBoxes); grabbing anywhere
+// within max(t/2, 8px) of it takes hold of the closest line.
+function dividerHit(x, y) {
+  const W = cv.width, H = cv.height;
+  const t = S.line * (W / BASE_W);
+  const iw = Math.max(1, W - t), ih = Math.max(1, H - t);
+  const grab = Math.max(t / 2, 8 * dpr());
+  let best = null, bestD = Infinity;
+  (function walk(node, rx, ry, rw, rh) {
+    if (!node.dir) return;
+    const p = Math.min(1-MIN_SPLIT, Math.max(MIN_SPLIT, node.pos));
+    if (node.dir === 'v') {
+      const lx = (rx + rw*p) * iw + t/2;
+      const y0 = ry*ih, y1 = (ry+rh)*ih + t;
+      const d = Math.abs(x - lx);
+      if (d <= grab && y >= y0 && y <= y1 && d < bestD) { bestD = d; best = { node, rx, ry, rw, rh }; }
+      walk(node.a, rx, ry, rw*p, rh);
+      walk(node.b, rx + rw*p, ry, rw*(1-p), rh);
+    } else {
+      const ly = (ry + rh*p) * ih + t/2;
+      const x0 = rx*iw, x1 = (rx+rw)*iw + t;
+      const d = Math.abs(y - ly);
+      if (d <= grab && x >= x0 && x <= x1 && d < bestD) { bestD = d; best = { node, rx, ry, rw, rh }; }
+      walk(node.a, rx, ry, rw, rh*p);
+      walk(node.b, rx, ry + rh*p, rw, rh*(1-p));
+    }
+  })(S.grid, 0, 0, 1, 1);
+  return best;
+}
+
+// --- Canvas mouse ----------------------------------------------------------------
+
+cv.addEventListener('pointerdown', e => {
+  if (e.button !== 0) return;
+  hideMenu();
+  if (previewMode) { setPreview(false); return; }
+  const p = pt(e);
+  const rp = rotHandlePos();
+  if (rp && Math.hypot(p.x - rp.hx, p.y - rp.hy) <= 12 * dpr()) {
+    const R = Math.max(1, Math.hypot(rp.hx - rp.cx, rp.hy - rp.cy));
+    dragRot = { id: sel, cx: rp.cx, cy: rp.cy, x0: p.x, y0: p.y,
+                ux: (rp.hx - rp.cx) / R, uy: (rp.hy - rp.cy) / R,
+                mode: null, pushed: false,
+                zoom0: Math.max(1, S.cells[sel].zoom || 1),
+                dupX: null, dupY: null };
+    cv.setPointerCapture(e.pointerId);
+    cv.style.cursor = 'grabbing';     // held, undecided — the icon comes with the mode
+    return;
+  }
+  const dv = gripHit(p.x, p.y) || dividerHit(p.x, p.y);
+  if (dv) {
+    dragDiv = { ...dv, pushed:false };
+    cv.setPointerCapture(e.pointerId);
+    return;
+  }
+  const raw = cellHit(p.x, p.y);
+  if (swapArm !== null) { doSwap(raw); return; }
+  if (raw === null) {
+    sel = null; multi.clear();
+    syncPanel(); paint();
+    return;
+  }
+  if (e.ctrlKey) {                       // multi-select raw cells, for grouping
+    if (multi.has(raw)) multi.delete(raw); else multi.add(raw);
+    if (sel === null) sel = raw;
+    syncPanel(); paint();
+    return;
+  }
+  const lid = leadOf(raw);
+  sel = lid; multi.clear();
+  const cell = S.cells[lid];
+  syncPanel();
+  if (!cell.imgId) {
+    // Import opens ONLY from the + circle itself (its centre + a little slop);
+    // a click elsewhere in an empty cell just selects it — Lasha 2026-07-14.
+    paint();
+    const c = plusCenterOf(lid);
+    if (c && Math.hypot(p.x - c.x, p.y - c.y) <= 18 * dpr())
+      pickFiles(lid);
+    return;
+  }
+  dragPan = { x:p.x, y:p.y, ox:cell.ox, oy:cell.oy, id:lid, pushed:false };
+  cv.setPointerCapture(e.pointerId);
+  cv.style.cursor = CUR.move;
+  paint();
+});
+
+cv.addEventListener('pointermove', e => {
+  const p = pt(e);
+  if (previewMode) { cv.style.cursor = 'pointer'; return; }
+  if (dragRot) {
+    const cell = S.cells[dragRot.id];
+    if (!cell || !cell.imgId) return;
+    if (dragRot.mode === null) {
+      // One grab = one gesture: the first ~10px decide it. Along the arc = a
+      // rotation; away from it = a zoom (the duplicate ring detaches).
+      const mx = p.x - dragRot.x0, my = p.y - dragRot.y0;
+      if (Math.hypot(mx, my) < 10 * dpr()) return;
+      const along = Math.abs(mx * dragRot.ux + my * dragRot.uy);
+      const across = Math.abs(mx * -dragRot.uy + my * dragRot.ux);
+      dragRot.mode = across > along ? 'rotate' : 'zoom';
+      if (dragRot.mode === 'rotate') cv.style.cursor = CUR.rotate;
+      // the zoom cursor is picked below, by the pull's direction (+ / −)
+    }
+    if (!dragRot.pushed) { pushUndo(); dragRot.pushed = true; }
+    if (dragRot.mode === 'zoom') {
+      // The duplicate in the hand: up / right = larger, down / left = smaller;
+      // 100 screen px = ×2 either way — the same pull always means the same
+      // change, however little room there is towards the centre.
+      const d = (p.x - dragRot.x0) - (p.y - dragRot.y0);
+      const sign = d >= 0 ? 1 : -1;         // magnifier shows + or − to match
+      if (sign !== dragRot.curSign) {
+        dragRot.curSign = sign;
+        cv.style.cursor = sign > 0 ? CUR.zoom : CUR.zoomOut;
+      }
+      let z = dragRot.zoom0 * Math.pow(2, d / (100 * dpr()));
+      if (Math.abs(z - 1) < 0.02) z = 1;   // easy to land exactly back on 100%
+      cell.zoom = Math.min(4, Math.max(1, z));
+      dragRot.dupX = p.x; dragRot.dupY = p.y;
+      syncPanel(); paint();
+      return;
+    }
+    let deg = Math.atan2(p.x - dragRot.cx, dragRot.cy - p.y) * 180 / Math.PI;
+    if (!e.altKey) {                    // 45° snap, Alt = free (CLAMA convention)
+      const s45 = Math.round(deg / 45) * 45;
+      if (Math.abs(deg - s45) < 4) deg = s45;
+    }
+    if (deg > 180) deg -= 360;
+    if (deg <= -180) deg += 360;
+    cell.angle = Math.round(deg * 10) / 10 || 0;
+    syncPanel();                        // the Obrót ° field follows the ring live
+    paint();
+    return;
+  }
+  if (dragDiv) {
+    if (!dragDiv.pushed) { pushUndo(); dragDiv.pushed = true; }
+    const W = cv.width, H = cv.height;
+    const t = S.line * (W / BASE_W);
+    const iw = Math.max(1, W - t), ih = Math.max(1, H - t);
+    const f = dragDiv.node.dir === 'v'
+      ? (((p.x - t/2) / iw) - dragDiv.rx) / dragDiv.rw
+      : (((p.y - t/2) / ih) - dragDiv.ry) / dragDiv.rh;
+    dragDiv.node.pos = Math.min(1-MIN_SPLIT, Math.max(MIN_SPLIT, f));
+    paint();
+    return;
+  }
+  if (dragPan) {
+    const cell = S.cells[dragPan.id];
+    if (!cell || !cell.imgId) return;
+    if (!dragPan.pushed) { pushUndo(); dragPan.pushed = true; }
+    const b = slotBoxOf(dragPan.id);
+    if (!b) return;
+    cell.ox = dragPan.ox + (p.x - dragPan.x) / Math.max(1, b[2]-b[0]);
+    cell.oy = dragPan.oy + (p.y - dragPan.y) / Math.max(1, b[3]-b[1]);
+    paint();
+    return;
+  }
+  const rp2 = rotHandlePos();
+  if (rp2 && Math.hypot(p.x - rp2.hx, p.y - rp2.hy) <= 12 * dpr()) {
+    // The ring does two things, so hovering promises neither: a plain hand.
+    // The moment the gesture locks (rotate / zoom), the cursor says which.
+    cv.style.cursor = 'grab';
+    return;
+  }
+  // The grip pill gets the hand — it's dragged, like the ring (Lasha 2026-07-14);
+  // the bare line keeps the forced arrow so the move cursor can't lie where a
+  // mousedown grabs the divider.
+  if (gripHit(p.x, p.y)) { cv.style.cursor = 'grab'; return; }
+  if (dividerHit(p.x, p.y)) { cv.style.cursor = ''; return; }
+  const raw = cellHit(p.x, p.y);
+  if (raw === null) { cv.style.cursor = ''; return; }
+  if (swapArm !== null) { cv.style.cursor = CUR.swap; return; }
+  const lead = leadOf(raw);
+  if (S.cells[lead].imgId) { cv.style.cursor = CUR.move; return; }
+  // Only the + circle itself gets the finger — the same 18px zone that opens the
+  // picker on click; the rest of the empty cell keeps the plain arrow.
+  const pc = plusCenterOf(lead);
+  cv.style.cursor = (pc && Math.hypot(p.x - pc.x, p.y - pc.y) <= 18 * dpr())
+    ? 'pointer' : '';
+});
+
+function endDrag() {
+  // Repaint on release, or the last dragged frame — the ghost ring and its
+  // tether included — stays on the canvas until something else redraws it.
+  const was = dragDiv || dragPan || dragRot;
+  dragDiv = null; dragPan = null; dragRot = null;
+  cv.style.cursor = '';
+  if (was) paint();
+}
+cv.addEventListener('pointerup', endDrag);
+cv.addEventListener('pointercancel', endDrag);
+
+cv.addEventListener('wheel', e => {
+  e.preventDefault();
+  if (previewMode) return;
+  const p = pt(e);
+  const raw = cellHit(p.x, p.y);
+  if (raw === null) return;
+  const lid = leadOf(raw);
+  const cell = S.cells[lid];
+  if (!cell.imgId) return;
+  sel = lid;
+  kindPush('wheel:' + lid);
+  const step = e.deltaY < 0 ? 1.08 : 1/1.08;
+  cell.zoom = Math.min(4, Math.max(1, cell.zoom * step));
+  syncPanel(); paint();
+}, { passive:false });
+
+// --- Context menu ------------------------------------------------------------------
+
+cv.addEventListener('contextmenu', e => {
+  e.preventDefault();
+  if (previewMode) return;
+  const p = pt(e);
+  const raw = cellHit(p.x, p.y);
+  if (raw === null) { hideMenu(); return; }
+  const lid = leadOf(raw);
+  sel = lid; multi.clear();
+  syncPanel(); paint();
+  const filled = !!S.cells[lid].imgId;
+  const grouped = membersOf(lid).length > 1;
+  const items = [];
+  if (filled) {
+    items.push(['Zamień zdjęcie…', () => pickFiles(lid)]);
+    items.push(['Zamień miejscami…', armSwap]);
+    items.push(['Ustaw jako tło', setBgFromCell]);
+    if ((S.cells[lid].angle || 0) !== 0)
+      items.push(['Wyprostuj (0°)', () => { pushUndo(); S.cells[lid].angle = 0; paint(); }]);
+  } else {
+    items.push(['Dodaj zdjęcie…', () => pickFiles(lid)]);
+  }
+  if (grouped) items.push(['Rozdziel grupę', ungroupSel]);
+  if (filled) { items.push(null); items.push(['Usuń zdjęcie', removePhoto]); }
+  showMenu(e.clientX, e.clientY, items);
+});
+
+function showMenu(x, y, items) {
+  const m = $('cmenu');
+  m.innerHTML = '';
+  for (const it of items) {
+    if (it === null) { m.appendChild(document.createElement('hr')); continue; }
+    const d = document.createElement('div');
+    d.textContent = it[0];
+    d.addEventListener('click', () => { hideMenu(); it[1](); });
+    m.appendChild(d);
+  }
+  m.hidden = false;
+  const r = m.getBoundingClientRect();
+  m.style.left = Math.min(x, innerWidth - r.width - 8) + 'px';
+  m.style.top = Math.min(y, innerHeight - r.height - 8) + 'px';
+}
+function hideMenu() { $('cmenu').hidden = true; }
+document.addEventListener('pointerdown', e => {
+  if (!$('cmenu').contains(e.target)) hideMenu();
+});
+
+// --- Tray drag → cell ---------------------------------------------------------------
+
+document.addEventListener('pointermove', e => {
+  if (!trayDrag) return;
+  if (!trayDrag.ghost) {
+    if (Math.abs(e.clientX - trayDrag.x) + Math.abs(e.clientY - trayDrag.y) < 6) return;
+    const rec = imgs[trayDrag.imgId];
+    const g = document.createElement('canvas');
+    const k = 64 / Math.max(rec.prev.width, rec.prev.height);
+    g.width = Math.max(1, Math.round(rec.prev.width * k));
+    g.height = Math.max(1, Math.round(rec.prev.height * k));
+    g.getContext('2d').drawImage(rec.prev, 0, 0, g.width, g.height);
+    g.id = 'ghost';
+    document.body.appendChild(g);
+    trayDrag.ghost = g;
+  }
+  trayDrag.ghost.style.left = (e.clientX + 12) + 'px';
+  trayDrag.ghost.style.top = (e.clientY + 12) + 'px';
+  const over = cellUnderClient(e.clientX, e.clientY);
+  const lead = over === null ? null : leadOf(over);
+  if (lead !== dndOver) { dndOver = lead; paint(); }
+});
+document.addEventListener('pointerup', e => {
+  if (!trayDrag) return;
+  const d = trayDrag;
+  trayDrag = null;
+  if (d.ghost) d.ghost.remove();
+  const over = cellUnderClient(e.clientX, e.clientY);
+  dndOver = null;
+  if (over !== null) {
+    pushUndo();
+    assignPhoto(leadOf(over), d.imgId);
+  } else if (!d.ghost) {                 // a plain click: into the selected cell
+    if (sel !== null) { pushUndo(); assignPhoto(sel, d.imgId); }
+    else toast('Kliknij najpierw komórkę, albo przeciągnij zdjęcie na nią');
+  }
+  paint();
+});
+function cellUnderClient(cx, cy) {
+  const r = cv.getBoundingClientRect();
+  if (cx < r.left || cx > r.right || cy < r.top || cy > r.bottom) return null;
+  const k = dpr();
+  return cellHit((cx - r.left) * k, (cy - r.top) * k);
+}
+
+// --- OS drag & drop ------------------------------------------------------------------
+
+document.addEventListener('dragover', e => e.preventDefault());
+document.addEventListener('drop', async e => {
+  e.preventDefault();
+  const files = [...(e.dataTransfer.files || [])].filter(f => f.type.startsWith('image/'));
+  if (!files.length) return;
+  const target = cellUnderClient(e.clientX, e.clientY);
+  const ids = [];
+  for (const f of files) {
+    try { ids.push(await addFromFile(f)); }
+    catch { toast('Nie udało się otworzyć zdjęcia'); }
+  }
+  if (!ids.length) return;
+  ids.forEach(trayAdd);              // the shelf mirrors every photo the collage gets
+  if (target !== null) {
+    pushUndo();
+    assignPhoto(leadOf(target), ids[0]);
+  } else {
+    toast('Zdjęcia na półce — przeciągnij je na komórki');
+  }
+  paint();
+});
+
+// --- Panel ---------------------------------------------------------------------------
+
+function buildTiles() {
+  const wall = $('tiles');
+  for (const p of PRESETS) {
+    const tile = document.createElement('div');
+    tile.className = 'tile';
+    tile.title = p.name;
+    tile.dataset.key = p.key;
+    const c = document.createElement('canvas');
+    c.width = 40; c.height = 54;
+    const g = c.getContext('2d');
+    const probe = p.make();                       // ids discarded — a drawing only
+    g.strokeStyle = '#9a9a9a'; g.fillStyle = '#1f1f1f'; g.lineWidth = 1;
+    for (const { r:[fx,fy,fw,fh] } of gridRects(probe)) {
+      g.fillRect(fx*40+2, fy*54+2, fw*40-4, fh*54-4);
+      g.strokeRect(fx*40+2.5, fy*54+2.5, fw*40-5, fh*54-5);
+    }
+    tile.appendChild(c);
+    tile.addEventListener('click', () => {
+      if (hasWork())
+        uiConfirm('Zmiana szablonu',
+          'Zastąpić obecny układ szablonem „' + p.name + '”? Ctrl+Z przywróci poprzedni.',
+          'Zastosuj', () => applyPreset(p));
+      else applyPreset(p);
+    });
+    wall.appendChild(tile);
+  }
+}
+
+/* Proporcje = a select row in grupa „Płótno" (the CLAMA way — canvas params live in the panel) */
+$('sRatio').addEventListener('change', () => {
+  const r = RATIOS.find(x => x[0] === $('sRatio').value);
+  if (!r || Math.abs(S.ratio - r[1]) < 1e-6) return;
+  pushUndo();
+  S.ratio = r[1];
+  syncPanel(); layoutCanvas();
+});
+
+// CLAMA-style numeric row: type a value, or scrub its LABEL (drag ↔, Shift = ×10).
+// One undo entry per typing/scrub run — kindPush coalesces same-kind pushes.
+function numRow(id, get, set, kindKey) {
+  const inp = $(id);
+  const min = parseFloat(inp.min), max = parseFloat(inp.max);
+  const clamp = v => Math.min(max, Math.max(min, v));
+  inp.addEventListener('input', () => {
+    const v = parseFloat(inp.value);
+    if (isNaN(v)) return;
+    kindPush(kindKey());
+    set(clamp(v));
+    paint();
+  });
+  inp.addEventListener('change', () => { inp.value = get(); });   // normalize after typing
+  const lb = inp.closest('.prow').querySelector('label');
+  lb.classList.add('scrub');
+  lb.addEventListener('mousedown', ev => {
+    if (ev.button !== 0 || inp.disabled) return;
+    ev.preventDefault();
+    const x0 = ev.clientX, v0 = get();
+    const mm = e2 => {
+      const v = clamp(v0 + (e2.clientX - x0) * (e2.shiftKey ? 10 : 1));
+      if (v === get()) return;
+      kindPush(kindKey());
+      set(v);
+      inp.value = v;
+      paint();
+    };
+    const up = () => {
+      document.removeEventListener('mousemove', mm);
+      document.removeEventListener('mouseup', up);
+      document.body.style.cursor = '';
+    };
+    document.body.style.cursor = 'ew-resize';
+    document.addEventListener('mousemove', mm);
+    document.addEventListener('mouseup', up);
+  });
+}
+
+function syncPanel() {
+  $('sLine').value = S.line;
+  $('sRad').value = S.radius;
+  $('sAlpha').value = S.lineAlpha;
+  $('cLine').style.background = S.lineColor; $('cLine').title = S.lineColor;
+  $('cBg').style.background = S.bg;          $('cBg').title = S.bg;
+  $('bgClearB').disabled = !(S.bgPhoto && S.bgPhoto.imgId);
+  const rat = RATIOS.find(x => Math.abs(x[1] - S.ratio) < 1e-6);
+  if (rat) $('sRatio').value = rat[0];
+  for (const t of $('tiles').children)
+    t.classList.toggle('on', t.dataset.key === S.layout);
+  const cell = sel !== null ? S.cells[sel] : null;
+  const filled = !!(cell && cell.imgId);
+  $('sZoom').disabled = !filled;
+  $('sZoom').value = filled ? Math.round(cell.zoom * 100) : 100;
+  $('sRot').disabled = !filled;
+  $('sRot').value = filled ? Math.round(cell.angle || 0) : 0;
+  $('replB').disabled = sel === null;
+  $('swapB').disabled = !filled;
+  $('remB').disabled = !filled;
+  geSync();
+}
+
+let toastTimer = null;
+const HINT = 'Kliknij pustą komórkę, aby dodać zdjęcie · pierścień = obrót i zoom · uchwyt na linii = siatka';
+function toast(msg) {
+  const s = $('status');
+  s.textContent = msg;
+  s.classList.add('t');                      // green while a message shows (CLAMA's toast colour)
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { s.textContent = HINT; s.classList.remove('t'); }, 4000);
+}
+
+// --- Wiring --------------------------------------------------------------------------
+
+$('newB').addEventListener('click', () => {
+  closeColorPop();
+  const go = () => {
+    pushUndo();
+    S = defaultState();
+    sel = null; multi.clear(); swapArm = null;
+    syncPanel(); layoutCanvas();
+    toast('Nowy kolaż (Ctrl+Z przywraca poprzedni)');
+  };
+  if (hasWork())
+    uiConfirm('Nowy kolaż', 'Zacząć od nowa? Obecny kolaż zostanie wyczyszczony. Ctrl+Z przywróci poprzedni.', 'Zacznij od nowa', go);
+  else go();
+});
+$('undoB').addEventListener('click', undo);
+$('redoB').addEventListener('click', redo);
+$('dl').addEventListener('click', exportFile);
+$('prevB').addEventListener('click', () => setPreview(!previewMode));
+/* Embedded mode: this file also runs INSIDE clama.html (fullscreen iframe = the "one
+   window" Lasha asked for). Talk to the parent via postMessage — no origin games. */
+const EMBED = (() => { try { return window.self !== window.top; } catch (e) { return true; } })();
+if (EMBED) {
+  $('toEditB').hidden = false;
+  $('toEditSep').hidden = false;
+  $('toEditB').addEventListener('click', () => parent.postMessage({ type: 'kolaz-close' }, '*'));
+}
+
+/* Do Clamy. Embedded: hand the render straight to the parent — it inserts and switches
+   back to the editor (pressing the button IS the consent; no extra ask). Standalone: a
+   localStorage "inbox" (same file:// origin — the colour swatches already travel this
+   way); CLAMA offers to insert it on boot/focus. */
+$('toClamaB').addEventListener('click', () => {
+  if (!hasPhotos()) return toast('Najpierw dodaj zdjęcie do kolażu');
+  const W = 1600, H = Math.round(W / S.ratio);          // plenty for a pin, light for storage
+  const c = document.createElement('canvas');
+  c.width = W; c.height = H;
+  render(c.getContext('2d'), W, H, true);
+  const src = c.toDataURL('image/jpeg', 0.9);
+  if (EMBED) { parent.postMessage({ type: 'kolaz-collage', src, w: W, h: H }, '*'); return; }
+  try {
+    localStorage.setItem('sallora-studio-inbox', JSON.stringify({ src, w: W, h: H, ts: Date.now() }));
+  } catch (e) {                                          // quota — the fallback is the file route
+    return toast('Nie udało się przekazać (za duży) — Pobierz plik i przeciągnij go do Clamy');
+  }
+  toast('Wysłano do Clamy — otwórz Clamę, kolaż czeka tam na wstawienie');
+});
+function setPreview(on) {
+  previewMode = on;
+  $('prevB').classList.toggle('on', on);
+  if (on) toast('Podgląd — kliknij płótno, aby wrócić');
+  paint();
+}
+$('addB').addEventListener('click', () => pickFiles(null));
+$('replB').addEventListener('click', () => sel !== null && pickFiles(sel));
+$('swapB').addEventListener('click', armSwap);
+$('remB').addEventListener('click', removePhoto);
+$('bgPickB').addEventListener('click', () => pickFiles('bg'));
+$('bgClearB').addEventListener('click', () => {
+  if (!(S.bgPhoto && S.bgPhoto.imgId)) return;
+  pushUndo();
+  S.bgPhoto = null;
+  syncPanel(); paint();
+});
+
+numRow('sLine',  () => S.line,      v => S.line = v,      () => 'sl:line');
+numRow('sRad',   () => S.radius,    v => S.radius = v,    () => 'sl:radius');
+numRow('sAlpha', () => S.lineAlpha, v => S.lineAlpha = v, () => 'sl:lineAlpha');
+numRow('sZoom',
+  () => { const c = sel !== null ? S.cells[sel] : null; return c && c.imgId ? Math.round(c.zoom * 100) : 100; },
+  v  => { const c = sel !== null ? S.cells[sel] : null; if (c && c.imgId) c.zoom = v / 100; },
+  () => 'sl:zoom:' + sel);
+numRow('sRot',
+  () => { const c = sel !== null ? S.cells[sel] : null; return c && c.imgId ? Math.round(c.angle || 0) : 0; },
+  v  => { const c = sel !== null ? S.cells[sel] : null; if (c && c.imgId) c.angle = v; },
+  () => 'sl:rot:' + sel);
+$('cLine').addEventListener('click', () => colorTrigger($('cLine'), S.lineColor,
+  v => { S.lineColor = v; $('cLine').style.background = v; $('cLine').title = v; paint(); }, 'Kolor linii'));
+$('cBg').addEventListener('click', () => colorTrigger($('cBg'), S.bg,
+  v => { S.bg = v; $('cBg').style.background = v; $('cBg').title = v; paint(); }, 'Tło płótna'));
+/* panel pipettes: a direct pick applies the colour and lands in Ostatnie — no popover (CLAMA) */
+$('pLine').addEventListener('click', () => eyedrop(v => {
+  pushUndo();
+  S.lineColor = v; $('cLine').style.background = v; $('cLine').title = v;
+  remember(colors.recent, v); saveColors();
+  paint();
+}));
+$('pBg').addEventListener('click', () => eyedrop(v => {
+  pushUndo();
+  S.bg = v; $('cBg').style.background = v; $('cBg').title = v;
+  remember(colors.recent, v); saveColors();
+  paint();
+}));
+
+// collapsible property groups (open by default; state lives in the DOM)
+document.querySelectorAll('#props .grpHead').forEach(gh =>
+  gh.addEventListener('click', () => gh.parentElement.classList.toggle('closed')));
+
+// --- Grid window: the miniature where merging is done by eye -------------------
+// A floating panel like the colour popover: draggable by its header, Esc closes,
+// stays put once moved. The miniature IS the collage (same render), so what is
+// picked here is what changes there — selection is the shared `multi` set.
+
+const gepop = $('gepop'), geCv = $('geCv');
+let geDragW = null, geMovedW = false;
+
+function geOpen() {
+  gepop.classList.add('open');
+  $('geMsg').classList.remove('on');   // no stale message from the last visit
+  geSync(); geDraw();
+  const w = gepop.offsetWidth, h = gepop.offsetHeight;
+  if (geMovedW) {                  // once Lasha drags it, it stays where he put it
+    const r0 = gepop.getBoundingClientRect();
+    gepop.style.left = Math.max(8, Math.min(r0.left, innerWidth - w - 8)) + 'px';
+    gepop.style.top  = Math.max(8, Math.min(r0.top,  innerHeight - h - 8)) + 'px';
+    return;
+  }
+  const r = $('gridB').getBoundingClientRect();   // default: left of the trigger
+  let x = r.left - w - 12;
+  if (x < 8) x = Math.min(r.right + 12, innerWidth - w - 8);
+  gepop.style.left = Math.max(8, x) + 'px';
+  gepop.style.top = Math.max(8, Math.min(r.top - 8, innerHeight - h - 8)) + 'px';
+}
+function geClose() { gepop.classList.remove('open'); }
+$('gridB').addEventListener('click', () =>
+  gepop.classList.contains('open') ? geClose() : geOpen());
+$('geClose').addEventListener('click', geClose);
+$('geClearB').addEventListener('click', () => { multi.clear(); geSync(); paint(); });
+
+$('geHead').addEventListener('mousedown', ev => {
+  if (ev.button !== 0 || ev.target.closest('.cpx')) return;
+  const r = gepop.getBoundingClientRect();
+  geDragW = { dx: ev.clientX - r.left, dy: ev.clientY - r.top };
+  ev.preventDefault();
+});
+window.addEventListener('mousemove', ev => {
+  if (!geDragW) return;
+  geMovedW = true;
+  gepop.style.left = Math.max(8, Math.min(ev.clientX - geDragW.dx, innerWidth - gepop.offsetWidth - 8)) + 'px';
+  gepop.style.top  = Math.max(8, Math.min(ev.clientY - geDragW.dy, innerHeight - gepop.offsetHeight - 8)) + 'px';
+});
+window.addEventListener('mouseup', () => { geDragW = null; });
+
+function geSync() {
+  if (!gepop.classList.contains('open')) return;
+  const n = multi.size;
+  const atCap = leafOrderIds().length >= MAX_CELLS;
+  $('geCount').textContent = n ? 'zaznaczone: ' + n : '';
+  $('geClearB').disabled = !n;
+  $('geMergeB').disabled = n < 2;
+  $('geGroupB').disabled = n < 2;
+  $('geCutHB').disabled = !n || atCap;
+  $('geCutVB').disabled = !n || atCap;
+  $('geUngroupB').disabled = !S.groups.some(g => g.some(id => multi.has(id)));
+}
+
+function geDraw() {
+  if (!gepop.classList.contains('open')) return;
+  const k = dpr(), maxW = 276, maxH = 320;
+  let w = maxW, h = w / S.ratio;
+  if (h > maxH) { h = maxH; w = h * S.ratio; }
+  geCv.style.width = w + 'px'; geCv.style.height = h + 'px';
+  geCv.width = Math.round(w * k); geCv.height = Math.round(h * k);
+  const g = geCv.getContext('2d');
+  render(g, geCv.width, geCv.height, false);
+  const rects = cellBoxes(geCv.width, geCv.height);
+  g.lineWidth = 1 * k;             // every piece outlined light-around-dark, so the
+  for (const { box:[x0,y0,x1,y1] } of rects) {   // cuts under a shared photo still show
+    g.strokeStyle = 'rgba(255,255,255,.55)';
+    g.strokeRect(x0 + .5*k, y0 + .5*k, x1-x0 - k, y1-y0 - k);
+    g.strokeStyle = 'rgba(0,0,0,.35)';
+    g.strokeRect(x0 + 1.5*k, y0 + 1.5*k, x1-x0 - 3*k, y1-y0 - 3*k);
+  }
+  for (const { id, box:[x0,y0,x1,y1] } of rects) {
+    if (!multi.has(id)) continue;
+    g.fillStyle = 'rgba(255,209,102,.18)';       // same gold as the canvas marks
+    g.fillRect(x0, y0, x1-x0, y1-y0);
+    g.strokeStyle = '#ffd166'; g.lineWidth = 2*k;
+    g.strokeRect(x0 + k, y0 + k, x1-x0 - 2*k, y1-y0 - 2*k);
+  }
+}
+
+geCv.addEventListener('pointerdown', e => {
+  if (e.button !== 0) return;
+  const r = geCv.getBoundingClientRect(), k = dpr();
+  const x = (e.clientX - r.left) * k, y = (e.clientY - r.top) * k;
+  for (const { id, box:[x0,y0,x1,y1] } of cellBoxes(geCv.width, geCv.height)) {
+    if (x < x0 || x > x1 || y < y0 || y > y1) continue;
+    if (multi.has(id)) multi.delete(id); else multi.add(id);
+    geSync(); paint();
+    return;
+  }
+});
+geCv.addEventListener('contextmenu', e => e.preventDefault());
+
+$('geMergeB').addEventListener('click', geMerge);
+$('geGroupB').addEventListener('click', geGroup);
+$('geUngroupB').addEventListener('click', geUngroup);
+$('geCutHB').addEventListener('click', () => geSplit('h'));
+$('geCutVB').addEventListener('click', () => geSplit('v'));
+
+// --- Color popover: saved + recent swatches (port of CLAMA's picker) ----------
+// Same localStorage key as CLAMA — the brand palette and saved colors are shared.
+const LS_COLORS = 'sallora-studio-colors';
+const SW_MAX = 10;                        // keeps each of the two rows a single line
+const cpop = $('cpop'), cpNative = $('cpNative'), cpHex = $('cpHex');
+let colors = (() => {
+  try {
+    const c = JSON.parse(localStorage.getItem(LS_COLORS));
+    if (c && Array.isArray(c.saved) && Array.isArray(c.recent)) return c;
+  } catch (e) {}
+  /* first run = the brand palette */
+  return { saved:['#fff4ee', '#1d1d1d', '#5e2b20', '#e6dcd2', '#8a7d72'], recent:[] };
+})();
+function saveColors() { localStorage.setItem(LS_COLORS, JSON.stringify(colors)); }
+function remember(list, v) {
+  const i = list.indexOf(v);
+  if (i >= 0) list.splice(i, 1);
+  list.unshift(v);
+  if (list.length > SW_MAX) list.pop();
+}
+let cpApply = null, cpAnchor = null, cpCur = '#000000', cpSnapped = false;
+function cpCommit(v) {
+  v = v.toLowerCase();
+  if (!/^#[0-9a-f]{6}$/.test(v)) return;
+  if (!cpSnapped) { pushUndo(); cpSnapped = true; }   // one undo step per popover session
+  cpCur = v;
+  cpNative.value = v;
+  if (cpHex.value.toLowerCase() !== v) cpHex.value = v;
+  cpApply(v);
+}
+function swRow(box, list, removable) {
+  box.innerHTML = '';
+  if (!list.length) { box.innerHTML = '<span class="none">— pusto —</span>'; return; }
+  for (const v of list) {
+    const b = document.createElement('button');
+    b.className = 'sw'; b.style.background = v;
+    b.title = v + (removable ? ' · prawy klik usuwa' : '');
+    b.onclick = () => cpCommit(v);
+    if (removable) b.oncontextmenu = ev => {
+      ev.preventDefault();
+      /* in OUR window, never the browser's confirm() */
+      uiConfirm('Usuwanie', 'Usunąć kolor ' + v + ' z zapisanych?', 'Usuń', () => {
+        colors.saved = colors.saved.filter(x => x !== v);
+        saveColors(); buildSwatches();
+      });
+    };
+    box.appendChild(b);
+  }
+}
+function buildSwatches() {
+  swRow($('cpSaved'), colors.saved, true);
+  swRow($('cpRecent'), colors.recent, false);
+}
+function openColorPop(anchor, cur, apply, label) {
+  cpApply = apply; cpAnchor = anchor; cpSnapped = false;
+  $('cpTitle').textContent = label || 'Kolor';
+  cpCur = /^#[0-9a-f]{6}$/i.test(cur || '') ? cur.toLowerCase() : '#000000';
+  cpNative.value = cpCur; cpHex.value = cpCur;
+  buildSwatches();
+  cpop.classList.add('open');
+  const w = cpop.offsetWidth, h = cpop.offsetHeight;
+  if (cpMoved) {
+    /* a floating window: once Lasha drags it, it stays where he put it (clamped) */
+    const r0 = cpop.getBoundingClientRect();
+    cpop.style.left = Math.max(8, Math.min(r0.left, innerWidth - w - 8)) + 'px';
+    cpop.style.top  = Math.max(8, Math.min(r0.top,  innerHeight - h - 8)) + 'px';
+    return;
+  }
+  /* default: beside the trigger (left of it), not on top of the collage */
+  const r = anchor.getBoundingClientRect();
+  let x = r.left - w - 12;
+  if (x < 8) x = Math.min(r.right + 12, innerWidth - w - 8);
+  const y = r.top < 60 ? r.bottom + 8 : r.top - 8;
+  cpop.style.left = Math.max(8, x) + 'px';
+  cpop.style.top = Math.max(8, Math.min(y, innerHeight - h - 8)) + 'px';
+}
+function closeColorPop() {
+  if (!cpop.classList.contains('open')) return;
+  if (cpSnapped) { remember(colors.recent, cpCur); saveColors(); }   // the colour actually used
+  cpop.classList.remove('open');
+  cpApply = null; cpAnchor = null;
+}
+/* trigger: click toggles on the same button, moves to another */
+function colorTrigger(btn, cur, apply, label) {
+  if (cpop.classList.contains('open') && cpAnchor === btn) { closeColorPop(); return; }
+  closeColorPop();
+  openColorPop(btn, cur, apply, label);
+}
+cpNative.oninput = ev => cpCommit(ev.target.value);
+cpHex.oninput = () => {
+  let v = cpHex.value.trim();
+  if (v && v[0] !== '#') v = '#' + v;
+  if (/^#[0-9a-fA-F]{6}$/.test(v)) cpCommit(v);
+};
+$('cpSave').onclick = () => {
+  const dropped = colors.saved.length >= SW_MAX && !colors.saved.includes(cpCur);
+  remember(colors.saved, cpCur); saveColors(); buildSwatches();
+  toast(dropped ? 'Zapisano ' + cpCur + ' (najstarszy wypadł z listy)' : 'Zapisano kolor: ' + cpCur);
+};
+$('cpClose').onclick = closeColorPop;
+/* pipeta in the popover — it may close before the pick resolves, hence the cpApply guard */
+$('cpPick').onclick = () => eyedrop(v => { if (cpApply) cpCommit(v); });
+window.addEventListener('mousedown', ev => {
+  if (!cpop.classList.contains('open')) return;
+  /* a click inside the confirm window (swatch delete) must not close the popover under it */
+  if (cpop.contains(ev.target) || (cpAnchor && cpAnchor.contains(ev.target)) || askpop.contains(ev.target)) return;
+  closeColorPop();
+});
+/* floating window: drag by the header bar */
+let cpDrag = null, cpMoved = false;
+$('cpHead').addEventListener('mousedown', ev => {
+  if (ev.button !== 0 || ev.target.closest('.cpx')) return;
+  const r = cpop.getBoundingClientRect();
+  cpDrag = { dx: ev.clientX - r.left, dy: ev.clientY - r.top };
+  ev.preventDefault();
+});
+window.addEventListener('mousemove', ev => {
+  if (!cpDrag) return;
+  cpMoved = true;
+  cpop.style.left = Math.max(8, Math.min(ev.clientX - cpDrag.dx, innerWidth - cpop.offsetWidth - 8)) + 'px';
+  cpop.style.top  = Math.max(8, Math.min(ev.clientY - cpDrag.dy, innerHeight - cpop.offsetHeight - 8)) + 'px';
+});
+window.addEventListener('mouseup', () => { cpDrag = null; });
+
+document.addEventListener('keydown', e => {
+  if (askpop.classList.contains('open')) {          // the confirm window is modal:
+    if (e.key === 'Escape') askClose();             // Esc = no, everything else
+    return;                                         // stays inside it
+  }
+  if (e.key === 'Escape') {
+    hideMenu();
+    if (cpop.classList.contains('open')) { closeColorPop(); return; }
+    if (gepop.classList.contains('open')) { geClose(); return; }
+    if (previewMode) { setPreview(false); return; }
+    if (swapArm !== null) { swapArm = null; toast('Zamiana anulowana'); paint(); }
+    return;
+  }
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+  /* physical key (e.code): Georgian layout gives e.key 'ზ'/'ყ' — Ctrl+Z/Y must still work */
+  const k = /^Key[A-Z]$/.test(e.code) ? e.code.slice(3).toLowerCase() : e.key.toLowerCase();
+  if (e.ctrlKey && k === 'z' && !e.shiftKey) { e.preventDefault(); undo(); }
+  else if ((e.ctrlKey && k === 'y') || (e.ctrlKey && e.shiftKey && k === 'z')) { e.preventDefault(); redo(); }
+  else if (e.key === 'Delete') removePhoto();
+});
+
+window.addEventListener('resize', layoutCanvas);
+window.addEventListener('beforeunload', e => {
+  if (hasPhotos()) { e.preventDefault(); e.returnValue = ''; }
+});
+
+// --- Boot ----------------------------------------------------------------------------
+// Manoni can pre-seed photos: a `collage-photos.js` beside this file with
+//   window.MANONI_PHOTOS = ['data:image/jpeg;base64,...', ...];
+// They land on the tray, a fitting layout is picked and the cells fill in order.
+
+async function boot() {
+  S = defaultState();
+  buildTiles();
+  if (Array.isArray(window.MANONI_PHOTOS) && window.MANONI_PHOTOS.length) {
+    const byCount = { 1:'split_h', 2:'split_h', 3:'big_left', 4:'grid_2x2' };
+    const p = PRESETS.find(x => x.key === (byCount[window.MANONI_PHOTOS.length] || 'grid_2x2'));
+    S.grid = p.make();
+    S.layout = p.key;
+    S.cells = {};
+    for (const { id } of gridRects(S.grid)) S.cells[id] = newCell();
+    for (const src of window.MANONI_PHOTOS) {
+      try { trayAdd(await addImage(src)); }
+      catch { toast('Jedno ze zdjęć nie dało się wczytać'); }
+    }
+    const ids = leafOrderIds();
+    let k = 0;
+    for (const cid of ids) {
+      if (k >= tray.length) break;
+      S.cells[cid] = { imgId: tray[k++].imgId, zoom:1, ox:0, oy:0, angle:0 };
+    }
+    toast('Zdjęcia od Manoni wczytane — przestaw je, jak chcesz');
+  }
+  syncPanel();
+  layoutCanvas();
+  $('status').textContent = HINT;
+}
+boot();
+</script>
+</body>
+</html>
