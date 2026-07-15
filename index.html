@@ -1378,7 +1378,21 @@ window.addEventListener('pointermove', ev => {
   e.x = Math.round(e.x); e.y = Math.round(e.y);
   draw(); buildProps();
 });
-window.addEventListener('pointerup', () => { if (drag) { drag = null; clearGuides(); } });
+window.addEventListener('pointerup', ev => {
+  if (!drag) return;
+  const wasClean = !drag.snapped, eid = drag.e.id;   // nie przekroczył progu = to był tap, nie drag
+  drag = null; clearGuides();
+  /* dbl-tap zaczęty na NIEznaczonym elemencie (jego reguła 2026-07-15): tap 1 zaznaczył
+     (lastSelTap), tap 2 = clean click na świeżo zaznaczonym → cofamy zaznaczenie i robimy
+     zoom widoku — dbl-tap przy pustym zaznaczeniu NIGDY nie zostawia elementu zaznaczonego */
+  if (wasClean && ev.pointerType === 'touch' && lastSelTap && eid === lastSelTap.id
+      && ev.timeStamp - lastSelTap.t < 400
+      && Math.abs(ev.clientX - lastSelTap.x) < 30 && Math.abs(ev.clientY - lastSelTap.y) < 30) {
+    lastSelTap = null;
+    selId = null; draw(); buildList(); buildProps();
+    dblTapZoom(ev.clientX, ev.clientY);
+  }
+});
 window.addEventListener('pointercancel', () => { if (drag) { drag = null; clearGuides(); } });
 
 /* ---------- MOBILE (etap 3): standardowy gest dwoma palcami — skala + obrót ----------
@@ -1393,6 +1407,7 @@ let pinch = null;
 let vpinch = null;               // dwa palce na PUSTYM płótnie (nic nie zaznaczone) = zoom widoku
 let pendingDesel = null;         // dotyk pustego miejsca przy zaznaczeniu — decyzja na UP (tap = odznacz, 2. palec = gest)
 let tapSel = null;               // dotyk NIEznaczonego elementu — decyzja na UP (tap = zaznacz; ruch = pan płótna)
+let lastSelTap = null;           // tap, który przed chwilą ZAZNACZYŁ element — drugi czysty tap = zoom, nie zaznaczenie
 const tpts = new Map();          // aktywne dotyki: pointerId -> {x,y}
 const canvasAreaEl = document.getElementById('canvasArea');
 /* fat finger: dotyk, który MIJA każdy element, łapie najbliższy w promieniu 18 px
@@ -1521,6 +1536,7 @@ const touchEnd = ev => {
     if (ev.type === 'pointerup' && !pinch && !vpinch && el(ts.id)
         && Math.hypot(ev.clientX - ts.x, ev.clientY - ts.y) < 10) {
       selId = ts.id; draw(); buildList(); buildProps();
+      lastSelTap = { id: ts.id, t: ev.timeStamp, x: ev.clientX, y: ev.clientY };
     }
   }
   if (pendingDesel && ev.pointerId === pendingDesel.id) {
