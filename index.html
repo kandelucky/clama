@@ -380,6 +380,10 @@
   #props .prow .val .cpick { flex:0 0 26px; width:26px; height:26px; margin:3px 6px 3px 4px; padding:0; background:none; border:1px solid transparent; border-radius:4px; display:flex; align-items:center; justify-content:center; cursor:pointer; }
   #props .prow .val .cpick:hover { background:#2b2b2b; border-color:#b4593f; }
   #props .prow .val .cpick img { width:14px; height:14px; display:block; opacity:.8; }
+  /* ↺ reset przy suwakach obróbki zdjęcia (Jasność/Kontrast/Nasycenie) — wraca do wartości domyślnej */
+  #props .prow .val .rst { flex:0 0 24px; width:24px; height:26px; margin:3px 6px 3px 4px; padding:0; background:none; border:1px solid transparent; border-radius:4px; color:#9a9a9a; font-size:15px; line-height:1; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+  #props .prow .val .rst:hover { background:#2b2b2b; border-color:#b4593f; color:#e8e8e8; }
+  #props .prow .val .rst.dim { opacity:.28; pointer-events:none; }   /* wartość już domyślna */
   /* Styl linii: dropdown with pattern previews — trigger shows the current stroke,
      #lspop lists all styles as wide samples + PL names (same look as #ctx) */
   #props .prow .val .lssel { flex:1; min-width:0; height:26px; margin:3px 6px; padding:0 8px; background:#242424; border:1px solid #3e3e3e; border-radius:4px; cursor:pointer; display:flex; align-items:center; gap:8px; color:#e0e0e0; }
@@ -592,6 +596,8 @@
       <span class="ttl">Szablony</span>
       <button class="tbtn" id="tplSaveAs"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAACXBIWXMAAAsTAAALEwEAmpwYAAAAv0lEQVR4nO2SvQ3CMBBGXUEfCSQaBgExQBiMvymySzYIBX0gKWGEFx1yJBQ5+HSkgIjXWT5/7862c6MBmAInoEbPA8iARCOQcCtnYB4TtJ2v/PqJe39m6cPjkm6gRiAAM6Dw5Rdg4YYUCNJ5Z5JEI7gq7j7vkWQaQQqUWsHLmwj3qMAKfTnjEwBb4KZ4aPkMqUWgCW8pLYJwofXcX+C+4Ypqv7e2CoCNX1ahwgPDsQsJJsBR7B8EV8BesmKT/w4NTQZtg2C2LYoAAAAASUVORK5CYII=">Zapisz bieżący jako szablon</button>
       <button class="tbtn" id="tplImport"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAACXBIWXMAAAsTAAALEwEAmpwYAAAAwElEQVR4nO2USQoCMRAA5zS+wOBbXN7niM/KbfCkB18QP+ADSjJ2oGdDsoigFuTS3enKAl1VPwVg/XqnoCNl4wI4AjfG2DmB3GiI73EAai3wgTlspCDQaEE4+Tr3iYCtlLmojVl13yvg+YknwAzrfExyNkfQSuoiDQNGYp42R7AEzpK+KoGOrZIF6inCaTXdrYp8MmPJbPMkgZLcZZkXtfGCGKYEYVRsCjTfTY2KhvLstaAWiSvQ2PnmvXH956M8AJAK2lBBEQ4KAAAAAElFTkSuQmCC">Import .json</button>
+      <button class="tbtn" id="projSave" title="Zapisz cały projekt (ze zdjęciami i fontami) do pliku"><img>Zapisz projekt</button>
+      <button class="tbtn" id="projOpen" title="Otwórz projekt z pliku"><img>Otwórz projekt</button>
       <div class="grow"></div>
       <button class="tbtn" id="tplClose" title="Zamknij (Esc)"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAACXBIWXMAAAsTAAALEwEAmpwYAAAAhklEQVR4nO2UQQqAIBBFvUSR9z+KO2lVkFCHeSHZptDGshbV3/p9D3QYpf58M4ABWqAWdOvQNTkCy5I+JQlw3/GxOYIK6MJFB2hBpxELjiRchacklIJHJCMwFINvJCvYZyoGTwh2H3/HE+mScOefRTLCp+EqfpYnkYwiVyRPrApz67L7867Mszmg1Nbc9e0AAAAASUVORK5CYII="></button>
     </div>
@@ -729,6 +735,7 @@
 
 <input type="file" id="filePick" accept="image/*" style="display:none">
 <input type="file" id="jsonPick" accept="application/json" style="display:none">
+<input type="file" id="projPick" accept=".json,application/json" style="display:none">
 <input type="file" id="fontPick" accept=".ttf,.otf,.woff,.woff2" style="display:none">
 
 <script>
@@ -810,8 +817,10 @@ const RENDER = MODE === 'render' || MODE === 'test';
 const LS_DOCS = 'sallora-studio-docs';
 const LS_CUR  = 'sallora-studio-current';
 function allDocs() { try { return JSON.parse(localStorage.getItem(LS_DOCS)) || {}; } catch(e) { return {}; } }
-function saveDocs(d) { localStorage.setItem(LS_DOCS, JSON.stringify(d)); }
-function persist() { if (!RENDER) localStorage.setItem(LS_CUR, JSON.stringify(doc)); }
+/* localStorage ma ~5 MB na origin; szablony ze zdjęciami (data URI) szybko przepełniają
+   ten limit. Zwraca false zamiast rzucać wyjątkiem, żeby zapis nie umierał po cichu. */
+function saveDocs(d) { try { localStorage.setItem(LS_DOCS, JSON.stringify(d)); return true; } catch(e) { return false; } }
+function persist() { if (!RENDER) { try { localStorage.setItem(LS_CUR, JSON.stringify(doc)); } catch(e) {} } }
 /* Reset wraca do dokumentu startowego: LS_RESET (jeśli ustawiony — nowszy proponowany szablon) albo wbudowany tplSizeGuide */
 const LS_RESET = 'sallora-studio-reset';
 function baselineDoc() {
@@ -1034,21 +1043,30 @@ function elNode(e) {
   const op = e.op == null ? 1 : Math.min(100, Math.max(0, +e.op)) / 100;
 
   if (e.type === 'img') {
-    if (e.radius) { d.style.borderRadius = e.radius + 'px'; d.style.overflow = 'hidden'; }
     const im = document.createElement('img');
     im.src = e.src || '';
     /* Kadr: cover = fill the fixed w×h frame (crop), contain = fit inside it;
        fx/fy = object-position % (which part of the photo the crop shows).
        No fit → the old behaviour: natural aspect, height follows width. */
+    let imCss = '';
     if (e.fit === 'cover' || e.fit === 'contain') {
       d.style.height = (e.h || 100) + 'px';
-      im.style.cssText = 'width:100%;height:100%;display:block;object-fit:' + e.fit +
+      imCss = 'width:100%;height:100%;display:block;object-fit:' + e.fit +
         ';object-position:' + Math.min(100, Math.max(0, e.fx ?? 50)) + '% ' +
         Math.min(100, Math.max(0, e.fy ?? 50)) + '%;';
     }
-    /* filtry: builder shared with the Filtry strip — neutral values emit nothing */
+    /* border-radius sits on the IMG itself (replaced element → clips to rounded corners),
+       NOT on .el with overflow:hidden — otherwise a Cień drop-shadow would be clipped away */
+    if (e.radius) imCss += 'border-radius:' + e.radius + 'px;';
+    if (imCss) im.style.cssText = imCss;
+    /* filtry (br/ct/sat…) + optional Cień in ONE filter chain. drop-shadow follows the
+       PNG's alpha → a transparent cut-out casts a shape-shadow, not a box; survives the
+       SVG export like the box/rule shadows (no container overflow to clip it) */
+    const fl = [];
     const flt = fltCss(e);
-    if (flt) im.style.filter = flt;
+    if (flt) fl.push(flt);
+    if (e.sh) fl.push('drop-shadow(' + (e.shx ?? 6) + 'px ' + (e.shy ?? 6) + 'px ' + (e.shb ?? 12) + 'px ' + shRgba(e) + ')');
+    if (fl.length) im.style.filter = fl.join(' ');
     if (op < 1) im.style.opacity = op;
     d.appendChild(im);
   } else if (e.type === 'rule') {
@@ -1721,7 +1739,8 @@ function commitTpl() {
   const n = tplName.value.trim();
   if (!n || BUILTIN[n]) return;
   doc.name = n;
-  const ds = allDocs(); ds[n] = doc; saveDocs(ds);
+  const ds = allDocs(); ds[n] = doc;
+  if (!saveDocs(ds)) { toast('Za mało miejsca w przeglądarce — użyj „Zapisz projekt", aby zapisać do pliku.'); return; }
   persist(); cancelTplAsk(); buildGallery();
   toast('Zapisano szablon: ' + n);
 }
@@ -1745,6 +1764,48 @@ document.getElementById('jsonPick').onchange = ev => {
   r.onload = () => {
     try { loadDoc(normalize(JSON.parse(r.result))); closeGallery(); toast('Zaimportowano'); }
     catch (e) { toast('Błędny plik JSON'); }
+  };
+  r.readAsText(f);
+  ev.target.value = '';
+};
+
+/* ---------- projekt jako plik roboczy (cały doc + zdjęcia + własne fonty) ----------
+   localStorage jest małe (~5 MB) i szablony ze zdjęciami je przepełniają; plik nie ma
+   tego limitu i przenosi projekt między komputerami / kopiami web. Format:
+   { tool:'clama-project', version:1, doc, fonts:{<rodzina>:{faces:{...}}} } */
+document.querySelector('#projSave img').src = document.querySelector('#tplSaveAs img').src;
+document.querySelector('#projOpen img').src = document.querySelector('#tplImport img').src;
+function projectFonts() {                       // tylko własne fonty faktycznie użyte w projekcie
+  const uf = userFonts(), used = {};
+  for (const e of (doc.els || [])) if (e.font && uf[e.font]) used[e.font] = uf[e.font];
+  return used;
+}
+document.getElementById('projSave').onclick = () => {
+  const bundle = { tool:'clama-project', version:1, doc, fonts: projectFonts() };
+  const base = (doc.name || 'projekt').replace(/[^\w\-]+/g, '-').toLowerCase() || 'projekt';
+  download(new Blob([JSON.stringify(bundle)], { type:'application/json' }), base + '.clama.json');
+  toast('Zapisano projekt do pliku: ' + base + '.clama.json');
+};
+document.getElementById('projOpen').onclick = () => document.getElementById('projPick').click();
+document.getElementById('projPick').onchange = ev => {
+  const f = ev.target.files[0]; if (!f) return;
+  const r = new FileReader();
+  r.onload = () => {
+    let b; try { b = JSON.parse(r.result); } catch (e) { toast('Błędny plik projektu'); return; }
+    const d = (b && b.tool === 'clama-project' && b.doc) ? b.doc : b;   // akceptuj też goły dokument .json
+    if (!d || !Array.isArray(d.els)) { toast('To nie jest plik projektu Clamy'); return; }
+    let fontWarn = false;
+    if (b && b.fonts && typeof b.fonts === 'object') {                  // przywróć własne fonty z paczki
+      const uf = userFonts(); let merged = 0;
+      for (const n in b.fonts) if (!uf[n]) { uf[n] = b.fonts[n]; merged++; }
+      if (merged) {
+        try { localStorage.setItem(LS_FONTS, JSON.stringify(uf)); syncUserFonts(); }
+        catch (e) { fontWarn = true; }
+      }
+    }
+    loadDoc(normalize(d)); closeGallery();
+    toast(fontWarn ? 'Wczytano projekt (fontów nie zapisano — za mało miejsca).'
+                   : 'Wczytano projekt: ' + (doc.name || f.name));
   };
   r.readAsText(f);
   ev.target.value = '';
@@ -2417,6 +2478,17 @@ function buildProps() {
   }
 
   const n = (k, lab, step, dflt) => row(lab, `<input type="number" data-k="${k}" value="${e[k] ?? dflt ?? 0}" step="${step||1}">`);
+  /* like n(), + a ↺ reset button (back to the field's default) — used across the Wygląd group */
+  const nr = (k, lab, step, dflt) => row(lab,
+    `<input type="number" data-k="${k}" value="${e[k] ?? dflt ?? 0}" step="${step||1}">` +
+    `<button class="rst${(+(e[k] ?? dflt)) === dflt ? ' dim' : ''}" data-rst="${k}" data-def="${dflt}" title="Resetuj">↺</button>`);
+  /* duo (two values, one row) + a SINGLE ↺ that resets both — e.g. Poz. X/Y, Kreska/Przerwa */
+  const duor = (k1, l1, d1, k2, l2, d2) => {
+    const dim = (+(e[k1] ?? d1)) === d1 && (+(e[k2] ?? d2)) === d2 ? ' dim' : '';
+    return `<div class="prow duo"><label>${l1}</label><span class="val"><input type="number" data-k="${k1}" value="${e[k1] ?? d1}" step="1"></span>` +
+      `<label>${l2}</label><span class="val"><input type="number" data-k="${k2}" value="${e[k2] ?? d2}" step="1">` +
+      `<button class="rst${dim}" data-rstm="${k1}:${d1},${k2}:${d2}" title="Resetuj">↺</button></span></div>`;
+  };
   const c = (k, lab) => row(lab, `<button class="cswbtn" data-ck="${k}" style="background:${e[k] || '#000000'}" title="${e[k] || '#000000'}"></button>` +
     `<button class="cpick" data-ck="${k}" title="Pipeta — pobierz kolor z ekranu"><img src="${ICON_PIPETTE}"></button>`);
   const framed = e.type === 'img' && (e.fit === 'cover' || e.fit === 'contain');   // img in a kadr = free w×h box
@@ -2495,23 +2567,23 @@ function buildProps() {
     let wg = row('Figura', `<select data-k="shape">` +
       [['rect','Prostokąt'],['star','Gwiazda']]
         .map(o => `<option value="${o[0]}" ${o[0]===(e.shape||'rect')?'selected':''}>${o[1]}</option>`).join('') + `</select>`);
-    if (e.shape === 'star') wg += n('points','Ramiona') + n('inner','Wcięcie %');
-    wg += n('radius','Zaokrągl.');
-    h += grp('Wygląd', 'Wygląd', wg + c('color','Kolor') + n('op','Krycie %', 1, 100));
+    if (e.shape === 'star') wg += nr('points','Ramiona', 1, 5) + nr('inner','Wcięcie %', 1, 50);
+    wg += nr('radius','Zaokrągl.', 1, 0);
+    h += grp('Wygląd', 'Wygląd', wg + c('color','Kolor') + nr('op','Krycie %', 1, 100));
     h += cien();
   }
   if (e.type === 'rule') {
-    let wg = n('thick','Grubość');
+    let wg = nr('thick','Grubość', 1, 1);
     /* Styl = dropdown with pattern previews (r3, Lasha: dropdown reads better than
        the cramped segmented buttons) — trigger shows the current stroke, list in #lspop */
     const lscur = LSTYLES.find(o => o[0] === (e.lstyle || 'solid')) || LSTYLES[0];
     wg += row('Styl', `<button class="lssel" title="${lscur[1]}">${lsSvg(lscur)}<span class="arr">▼</span></button>`);
-    if (e.lstyle === 'dash' || e.lstyle === 'dashdot') wg += duo('dash','Kreska','gap','Przerwa');
-    if (e.lstyle === 'dot')  wg += n('gap','Przerwa');
+    if (e.lstyle === 'dash' || e.lstyle === 'dashdot') wg += duor('dash','Kreska',12,'gap','Przerwa',8);
+    if (e.lstyle === 'dot')  wg += nr('gap','Przerwa', 1, 8);
     wg += row('Końce', `<select data-k="cap">` +
       [['butt','Płaskie'],['round','Zaokrąglone'],['square','Kwadratowe']]
         .map(o => `<option value="${o[0]}" ${o[0]===(e.cap||'butt')?'selected':''}>${o[1]}</option>`).join('') + `</select>`);
-    h += grp('Wygląd', 'Wygląd', wg + c('color','Kolor') + n('op','Krycie %', 1, 100));
+    h += grp('Wygląd', 'Wygląd', wg + c('color','Kolor') + nr('op','Krycie %', 1, 100));
     h += cien();
   }
   if (e.type === 'img') {
@@ -2519,10 +2591,11 @@ function buildProps() {
     let wg = row('Kadr', `<select data-k="fit">` +
       [['auto','Cały obraz (auto)'],['cover','Wypełnij ramkę'],['contain','Zmieść w ramce']]
         .map(o => `<option value="${o[0]}" ${o[0]===(e.fit||'auto')?'selected':''}>${o[1]}</option>`).join('') + `</select>`);
-    if (e.fit === 'cover') wg += duo('fx','Poz. X %','fy','Poz. Y %');
-    wg += n('br','Jasność %', 1, 100) + n('ct','Kontrast %', 1, 100) + n('sat','Nasycenie %', 1, 100);
-    wg += n('radius','Zaokrągl.') + n('op','Krycie %', 1, 100);
+    if (e.fit === 'cover') wg += duor('fx','Poz. X %',50,'fy','Poz. Y %',50);
+    wg += nr('br','Jasność %', 1, 100) + nr('ct','Kontrast %', 1, 100) + nr('sat','Nasycenie %', 1, 100);
+    wg += nr('radius','Zaokrągl.', 1, 0) + nr('op','Krycie %', 1, 100);
     h += grp('Wygląd', 'Wygląd', wg);
+    h += cien();   // Cień na PNG: drop-shadow idzie za alfą (kształt wycięcia, nie prostokąt)
   }
 
   p.innerHTML = h;
@@ -2581,6 +2654,12 @@ function buildProps() {
         }
         buildProps();
       }
+      const rb = p.querySelector(`.rst[data-rst="${k}"]`);   // ↺ dims live when the field is back at default
+      if (rb) rb.classList.toggle('dim', (+v) === +rb.dataset.def);
+      const rbm = [...p.querySelectorAll('.rst[data-rstm]')].find(b =>   // duo ↺: dim only when BOTH halves are default
+        b.dataset.rstm.split(',').some(s => s.split(':')[0] === k));
+      if (rbm) rbm.classList.toggle('dim',
+        rbm.dataset.rstm.split(',').every(s => { const [kk, dd] = s.split(':'); return (+(e[kk] ?? +dd)) === +dd; }));
       draw(); buildList();
     };
   });
@@ -2599,6 +2678,27 @@ function buildProps() {
     };
   }
   wireScrub();
+
+  /* ↺ w grupie Wygląd — jeden undo, wraca do wartości domyślnej pola */
+  p.querySelectorAll('.rst[data-rst]').forEach(btn => btn.onclick = () => {
+    const k = btn.dataset.rst, def = +btn.dataset.def;
+    if ((+(e[k] ?? def)) === def) return;   // już domyślne
+    snap();
+    e[k] = def;
+    const inp = p.querySelector(`input[data-k="${k}"]`);
+    if (inp) inp.value = def;
+    btn.classList.add('dim');
+    draw(); buildList();
+  });
+  /* duo ↺ — resetuje OBIE wartości do ich domyślnych */
+  p.querySelectorAll('.rst[data-rstm]').forEach(btn => btn.onclick = () => {
+    const pairs = btn.dataset.rstm.split(',').map(s => s.split(':'));   // [[k, def], …]
+    if (pairs.every(([k, d]) => (+(e[k] ?? +d)) === +d)) return;        // obie już domyślne
+    snap();
+    pairs.forEach(([k, d]) => { e[k] = +d; const inp = p.querySelector(`input[data-k="${k}"]`); if (inp) inp.value = +d; });
+    btn.classList.add('dim');
+    draw(); buildList();
+  });
 
   const sw = document.getElementById('imgSwap');
   if (sw) sw.onclick = () => document.getElementById('filePick').click();
