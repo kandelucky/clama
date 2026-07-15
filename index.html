@@ -1,11 +1,13 @@
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Clama</title>
 <script src="fonts.js"></script>
 <script src="assets.js"></script>
+<script src="lang.js"></script>
 
 <style>
   * { box-sizing:border-box; margin:0; padding:0; }
-  body { font-family:'DM Sans', system-ui, sans-serif; background:#242424; color:#e8e8e8; display:flex; flex-direction:column; height:100vh; overflow:hidden; font-size:13px; }
+  body { font-family:'DM Sans', system-ui, sans-serif; background:#242424; color:#e8e8e8; display:flex; flex-direction:column; height:100vh; overflow:hidden; font-size:13px; -webkit-tap-highlight-color:transparent; }
   #main { flex:1; display:flex; min-height:0; }
 
   /* ---------------- top bar ---------------- */
@@ -165,11 +167,11 @@
   #canvasArea { flex:1; overflow:auto; padding:28px; display:flex; align-items:flex-start; background:#242424; }
   #scaler { transform-origin:top left; position:relative; margin:0 auto; }
   #stage { position:relative; overflow:hidden; box-shadow:0 0 0 1px #000, 0 24px 70px rgba(0,0,0,.55); }
-  .el { position:absolute; user-select:none; }
+  .el { position:absolute; user-select:none; -webkit-user-select:none; touch-action:none; }   /* touch-action:none = a finger on an element drags it, the browser never scrolls */
   .el.sel { outline:var(--ol,1.5px) dashed #c0392b; outline-offset:4px; }
   .el img { width:100%; display:block; pointer-events:none; }
   .h {
-    position:absolute; width:var(--hs,11px); height:var(--hs,11px);
+    position:absolute; width:var(--hs,11px); height:var(--hs,11px); touch-action:none;
     background:#fff; border:var(--hb,2px) solid #c0392b;
     border-radius:2px; display:none; z-index:99;
   }
@@ -249,7 +251,7 @@
   #props .prow { display:flex; align-items:stretch; border-top:1px solid #2b2b2b; }
   #props .prow:hover { background:#242424; }
   #props .prow > label { flex:0 0 45%; padding:6px 9px; color:#9a9a9a; font-size:11px; border-right:1px solid #2b2b2b; display:flex; align-items:center; }
-  #props .prow > label.scrub { cursor:ew-resize; user-select:none; }
+  #props .prow > label.scrub { cursor:ew-resize; user-select:none; touch-action:none; }
   #props .prow .val { flex:1; min-width:0; display:flex; align-items:center; }
   /* editable fields LOOK like fields (bg + border); read-only cells stay plain text */
   #props .prow .val input, #props .prow .val select, #props .prow .val textarea {
@@ -322,6 +324,16 @@
   #list .item .ic img { width:14px; height:14px; display:block; opacity:.9; }
   #list .item .t { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   #list .item .ty { flex:0 0 auto; font-size:9px; color:#8d8d8d; text-transform:uppercase; letter-spacing:.08em; }
+
+  /* Filtry — mini-previews of the SELECTED photo, one per preset (IG-style) */
+  #flt { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; padding:3px 0; }
+  #flt .fi { cursor:pointer; text-align:center; min-width:0; }
+  #flt .fi img { width:100%; aspect-ratio:4/3; object-fit:cover; display:block; background:#242424; border:1px solid #383838; border-radius:6px; box-sizing:border-box; }
+  #flt .fi:hover img { border-color:#4a4a4a; }
+  #flt .fi.on img { border-color:#b4593f; box-shadow:0 0 0 1px #b4593f; }
+  #flt .fi span { display:block; font-size:9px; color:#8d8d8d; margin-top:3px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  #flt .fi.on span { color:#e0b9ad; }
+  #flt .none { grid-column:1 / -1; font-size:11px; color:#777; padding:2px 1px; }
   #list .item.on .ty { color:#eac9bd; }
   #list .empty { color:#6f6f6f; font-size:11px; padding:2px 1px 4px; }
 
@@ -375,7 +387,7 @@
     box-shadow:0 18px 50px rgba(0,0,0,.55); padding:0; overflow:hidden;
   }
   #cpop.open { display:block; }
-  #cpHead { display:flex; align-items:center; gap:8px; padding:6px 6px 6px 12px; border-bottom:1px solid #2e2e2e; cursor:move; }
+  #cpHead { display:flex; align-items:center; gap:8px; padding:6px 6px 6px 12px; border-bottom:1px solid #2e2e2e; cursor:move; touch-action:none; }
   #cpHead .ttl { flex:1; font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:#8a7a6e; user-select:none; }
   #cpBody { padding:10px; }
   #cpop .cprow { display:flex; gap:6px; }
@@ -440,6 +452,11 @@
   <div class="paneBox">
     <h2>Elementy</h2>
     <div id="list"></div>
+  </div>
+
+  <div class="paneBox">
+    <h2>Filtry</h2>
+    <div id="flt"></div>
   </div>
 
   <div class="paneBox">
@@ -877,6 +894,32 @@ function richHTML(str, bw) {
   return out;
 }
 
+/* ---------- filtry obrazu — shared builder ----------
+   br/ct/sat (100 = neutral) + gs/sep (0 = neutral) + hue (deg, 0 = neutral).
+   Neutral values emit NOTHING — old docs and untouched images render
+   byte-identical. Order matters: sepia BEFORE hue-rotate (the Chłodny preset
+   tints by washing to sepia first, then rotating the hue to blue). */
+function fltCss(e) {
+  const f = [];
+  if (e.br  != null && +e.br  !== 100) f.push('brightness(' + Math.max(0, +e.br) + '%)');
+  if (e.ct  != null && +e.ct  !== 100) f.push('contrast(' + Math.max(0, +e.ct) + '%)');
+  if (e.sat != null && +e.sat !== 100) f.push('saturate(' + Math.max(0, +e.sat) + '%)');
+  if (e.gs  != null && +e.gs  !== 0)   f.push('grayscale(' + Math.min(100, Math.max(0, +e.gs)) + '%)');
+  if (e.sep != null && +e.sep !== 0)   f.push('sepia(' + Math.min(100, Math.max(0, +e.sep)) + '%)');
+  if (e.hue != null && +e.hue !== 0)   f.push('hue-rotate(' + (+e.hue) + 'deg)');
+  return f.join(' ');
+}
+/* ready-made filters (strip pod Elementami) = presets over the SAME params — the manual
+   sliders keep working as fine-tuning on top. Oryginał resets to neutral. */
+const FLT_PRESETS = [
+  ['Oryginał',     {br:100, ct:100, sat:100, gs:0,   sep:0,  hue:0}],
+  ['Czarno-biały', {br:105, ct:108, sat:100, gs:100, sep:0,  hue:0}],
+  ['Sepia',        {br:103, ct:102, sat:100, gs:0,   sep:85, hue:0}],
+  ['Ciepły',       {br:103, ct:100, sat:120, gs:0,   sep:28, hue:0}],
+  ['Chłodny',      {br:102, ct:100, sat:120, gs:0,   sep:35, hue:180}],
+  ['Wyblakły',     {br:112, ct:82,  sat:70,  gs:0,   sep:0,  hue:0}]
+];
+
 function elNode(e) {
   const d = document.createElement('div');
   d.className = 'el';
@@ -902,13 +945,9 @@ function elNode(e) {
         ';object-position:' + Math.min(100, Math.max(0, e.fx ?? 50)) + '% ' +
         Math.min(100, Math.max(0, e.fy ?? 50)) + '%;';
     }
-    /* filtry: 100% = neutral, so the filter is emitted only when a value differs —
-       old docs and untouched images render byte-identical to before */
-    const flt = [];
-    if (e.br != null && +e.br !== 100) flt.push('brightness(' + Math.max(0, +e.br) + '%)');
-    if (e.ct != null && +e.ct !== 100) flt.push('contrast(' + Math.max(0, +e.ct) + '%)');
-    if (e.sat != null && +e.sat !== 100) flt.push('saturate(' + Math.max(0, +e.sat) + '%)');
-    if (flt.length) im.style.filter = flt.join(' ');
+    /* filtry: builder shared with the Filtry strip — neutral values emit nothing */
+    const flt = fltCss(e);
+    if (flt) im.style.filter = flt;
     if (op < 1) im.style.opacity = op;
     d.appendChild(im);
   } else if (e.type === 'rule') {
@@ -1019,7 +1058,7 @@ function draw() {
           ? ['e','w','ne','nw','se','sw','rot']
           : ['e','w','rot'];   // rule
       d.innerHTML += hs.map(h => '<div class="h ' + h + '"></div>').join('');
-      d.addEventListener('mousedown', onDown);
+      d.addEventListener('pointerdown', onDown);   /* pointer events = one path for mouse AND touch */
       /* while text is being edited, keep the native menu (copy/paste) */
       d.addEventListener('contextmenu', ev => {
         if (d.getAttribute('contenteditable') === 'true') return;
@@ -1063,6 +1102,7 @@ function zoom() { return +document.getElementById('zoom').value / 100; }
 let lastDown = { id:null, t:0, x:0, y:0 };
 function onDown(ev) {
   if (ev.button !== 0) return;   // right/middle click never drags (right = context menu)
+  if (drag) return;              // a second finger (multi-touch) must not hijack a running gesture
   const n = ev.currentTarget;
   if (n.getAttribute('contenteditable') === 'true') return;
   const onHandle = ev.target.classList.contains('h');
@@ -1086,6 +1126,9 @@ function onDown(ev) {
   drag = { e, mode, snapped:false, sx:ev.clientX, sy:ev.clientY, ox:e.x, oy:e.y, ow:e.w,
            oh:e.h || hEl, hEl, osize:e.size || 0, orot:e.rot || 0 };
   draw(); buildList(); buildProps();
+  /* touch gives implicit capture to the pressed node, but draw() just destroyed it —
+     re-capture on the stable stage so pointermove keeps flowing to the window listener */
+  try { stage.setPointerCapture(ev.pointerId); } catch (err) {}
   ev.preventDefault();
 }
 
@@ -1109,7 +1152,7 @@ function guide(dir, pos) {
   stage.appendChild(g);
 }
 
-window.addEventListener('mousemove', ev => {
+window.addEventListener('pointermove', ev => {
   if (!drag) return;
   /* lazy snapshot: only a real gesture makes an undo step — a plain click adds none,
      so Ctrl+Z never has to chew through identical states */
@@ -1221,7 +1264,8 @@ window.addEventListener('mousemove', ev => {
   e.x = Math.round(e.x); e.y = Math.round(e.y);
   draw(); buildProps();
 });
-window.addEventListener('mouseup', () => { if (drag) { drag = null; clearGuides(); } });
+window.addEventListener('pointerup', () => { if (drag) { drag = null; clearGuides(); } });
+window.addEventListener('pointercancel', () => { if (drag) { drag = null; clearGuides(); } });
 
 /* ---------- text edit ---------- */
 function startEdit(id) {
@@ -1538,7 +1582,7 @@ function askConfirm(btn, msg, yesLabel, act) {
 function closeCfm() { cfm.style.display = 'none'; cfmAct = null; }
 document.getElementById('cfmNo').onclick = closeCfm;
 document.getElementById('cfmOk').onclick = () => { const a = cfmAct; closeCfm(); if (a) a(); };
-window.addEventListener('mousedown', ev => { if (cfm.style.display === 'block' && !cfm.contains(ev.target)) closeCfm(); }, true);
+window.addEventListener('pointerdown', ev => { if (cfm.style.display === 'block' && !cfm.contains(ev.target)) closeCfm(); }, true);
 /* capture + stopPropagation: with the confirm open, Esc closes ONLY it, not the modal underneath */
 window.addEventListener('keydown', ev => {
   if (ev.key === 'Escape' && cfm.style.display === 'block') { closeCfm(); ev.stopPropagation(); }
@@ -1569,7 +1613,7 @@ document.getElementById('filePick').onchange = ev => {
   ev.target.value = '';
 };
 /* click on empty canvas = deselect */
-document.getElementById('canvasArea').addEventListener('mousedown', ev => {
+document.getElementById('canvasArea').addEventListener('pointerdown', ev => {
   if (['canvasArea','scaler','stage'].includes(ev.target.id) && selId) {
     selId = null; draw(); buildList(); buildProps();
   }
@@ -1765,7 +1809,7 @@ document.getElementById('alignV').onclick = () => {
   snap(); e.y = Math.round((doc.h - h) / 2); draw(); buildProps();
 };
 ctxMenu.querySelector('[data-act="del"]').onclick = () => { closeCtx(); snap(); removeSel(); };
-window.addEventListener('mousedown', ev => { if (!ctxMenu.contains(ev.target)) closeCtx(); });
+window.addEventListener('pointerdown', ev => { if (!ctxMenu.contains(ev.target)) closeCtx(); });
 window.addEventListener('scroll', closeCtx, true);
 window.addEventListener('resize', closeCtx);
 /* browser's own right-click menu OFF everywhere; native menu stays only in text entry (copy/paste) */
@@ -1806,7 +1850,7 @@ function openLsPop(btn, e) {
   });
 }
 function closeLsPop() { lspop.style.display = 'none'; lspop.innerHTML = ''; }
-window.addEventListener('mousedown', ev => {
+window.addEventListener('pointerdown', ev => {
   if (lspop.style.display === 'block' && !lspop.contains(ev.target) && !ev.target.closest('.lssel')) closeLsPop();
 });
 window.addEventListener('scroll', closeLsPop, true);
@@ -1833,12 +1877,54 @@ function limOf(k, e) {
     w:     { min: 1, max: 20000 }, h:     { min: 1, max: 20000 },
     thick: { min: 1, max: 500 },  shb:    { min: 0, max: 500 },
     dash:  { min: 1, max: 1000 }, gap:    { min: 1, max: 1000 },
-    olw:   { min: 0, max: 50 }
+    olw:   { min: 0, max: 50 },
+    /* filter-preset params — no panel fields today, bounds ready if they get any */
+    gs:    { min: 0, max: 100 },  sep:    { min: 0, max: 100 },
+    hue:   { min: -180, max: 180 }
   }[k] || null;
 }
+/* ---------- Filtry strip — mini-previews of the SELECTED photo (IG-style) ----------
+   Own paneBox under Elementy; rebuilt by every buildProps (selection change, undo,
+   structural param change). Thumbs are built via DOM + .src property — a data-URI
+   src interpolated into innerHTML would copy a multi-MB string per thumb.
+   Preview = the preset on the ORIGINAL photo (not stacked on current sliders);
+   a click REPLACES the six filter params (one snap = one Ctrl+Z), sliders stay
+   available as fine-tuning on top. */
+function buildFilters(e) {
+  const box = document.getElementById('flt');
+  if (!box) return;
+  box.innerHTML = '';
+  if (!e || e.type !== 'img' || !e.src) {
+    box.innerHTML = '<span class="none">Zaznacz zdjęcie, aby użyć filtrów.</span>';
+    return;
+  }
+  const cur = k => +(e[k] ?? ((k === 'br' || k === 'ct' || k === 'sat') ? 100 : 0));
+  FLT_PRESETS.forEach(P => {
+    const on = Object.keys(P[1]).every(k => cur(k) === P[1][k]);
+    const d = document.createElement('div');
+    d.className = 'fi' + (on ? ' on' : '');
+    d.title = P[0];
+    const im = document.createElement('img');
+    im.src = e.src;
+    im.alt = '';
+    const f = fltCss(P[1]);
+    if (f) im.style.filter = f;
+    const s = document.createElement('span');
+    s.textContent = P[0];
+    d.append(im, s);
+    d.onclick = () => {
+      snap();
+      Object.assign(e, P[1]);
+      draw(); buildProps();   // re-runs buildFilters → highlight + sliders refresh
+    };
+    box.appendChild(d);
+  });
+}
+
 function buildProps() {
   const p = document.getElementById('props');
   const e = sel();
+  buildFilters(e);   /* the Filtry strip follows the selection — both branches below return */
 
   const row = (lab, val) => `<div class="prow"><label>${lab}</label><span class="val">${val}</span></div>`;
   const grp = (key, head, body) => `<div class="grp${propOpen[key] === false ? ' closed' : ''}" data-grp="${key}">` +
@@ -1854,9 +1940,10 @@ function buildProps() {
     const inp = val && val.querySelector('input[type=number]');
     if (!inp) return;
     lb.classList.add('scrub');
-    lb.onmousedown = ev => {
+    lb.onpointerdown = ev => {
       if (ev.button !== 0) return;
       ev.preventDefault();
+      try { lb.setPointerCapture(ev.pointerId); } catch (err) {}   /* touch: keep the stream even if the finger wanders */
       const step = parseFloat(inp.step) || 1;
       const dec = (String(step).split('.')[1] || '').length;
       const x0 = ev.clientX, v0 = parseFloat(inp.value) || 0;
@@ -1871,15 +1958,17 @@ function buildProps() {
         inp.dispatchEvent(new Event('input'));
       };
       const up = () => {
-        document.removeEventListener('mousemove', mm);
-        document.removeEventListener('mouseup', up);
+        document.removeEventListener('pointermove', mm);
+        document.removeEventListener('pointerup', up);
+        document.removeEventListener('pointercancel', up);
         document.body.style.cursor = '';
         stage.classList.remove('scrubbing');
       };
       document.body.style.cursor = 'ew-resize';
       stage.classList.add('scrubbing');   /* hides the sel chrome for the drag (labels don't take focus) */
-      document.addEventListener('mousemove', mm);
-      document.addEventListener('mouseup', up);
+      document.addEventListener('pointermove', mm);
+      document.addEventListener('pointerup', up);
+      document.addEventListener('pointercancel', up);
     };
   });
 
@@ -2275,7 +2364,7 @@ document.getElementById('cpSave').onclick = () => {
   remember(colors.saved, cpCur); saveColors(); buildSwatches();
   toast(dropped ? 'Zapisano ' + cpCur + ' (najstarszy wypadł z listy)' : 'Zapisano kolor: ' + cpCur);
 };
-window.addEventListener('mousedown', ev => {
+window.addEventListener('pointerdown', ev => {
   if (!cpop.classList.contains('open')) return;
   if (cpop.contains(ev.target) || (cpAnchor && cpAnchor.contains(ev.target)) || cfm.contains(ev.target)) return;
   closeColorPop();
@@ -2285,21 +2374,24 @@ document.querySelector('#cpClose img').src = document.querySelector('#tplClose i
 document.getElementById('cpClose').onclick = closeColorPop;
 /* floating window: drag by the header bar */
 let cpDrag = null, cpMoved = false;
-document.getElementById('cpHead').addEventListener('mousedown', ev => {
+document.getElementById('cpHead').addEventListener('pointerdown', ev => {
   if (ev.button !== 0 || ev.target.closest('.cpx')) return;
   const r = cpop.getBoundingClientRect();
   cpDrag = { dx: ev.clientX - r.left, dy: ev.clientY - r.top };
   ev.preventDefault();
 });
-window.addEventListener('mousemove', ev => {
+window.addEventListener('pointermove', ev => {
   if (!cpDrag) return;
   cpMoved = true;
   cpop.style.left = Math.max(8, Math.min(ev.clientX - cpDrag.dx, innerWidth - cpop.offsetWidth - 8)) + 'px';
   cpop.style.top  = Math.max(8, Math.min(ev.clientY - cpDrag.dy, innerHeight - cpop.offsetHeight - 8)) + 'px';
 });
-window.addEventListener('mouseup', () => { cpDrag = null; });
+window.addEventListener('pointerup', () => { cpDrag = null; });
+window.addEventListener('pointercancel', () => { cpDrag = null; });
 
 /* ---------- canvas settings (tło + rozmiar) live in the props panel — grupa „Płótno" ---------- */
+/* handles keep constant SCREEN size at any zoom; a coarse pointer (finger) needs a bigger target */
+const HS_BASE = matchMedia('(pointer: coarse)').matches ? 22 : 11;
 function applyZoom() {
   const k = zoom();
   scaler.style.transform = 'scale(' + k + ')';
@@ -2307,7 +2399,7 @@ function applyZoom() {
   scaler.style.height = (doc.h * k) + 'px';
   document.getElementById('zv').textContent = Math.round(k*100) + '%';
   // keep the selection handles the same size on screen at every zoom level
-  stage.style.setProperty('--hs', (11/k).toFixed(2) + 'px');
+  stage.style.setProperty('--hs', (HS_BASE/k).toFixed(2) + 'px');
   stage.style.setProperty('--hb', (2/k).toFixed(2) + 'px');
   stage.style.setProperty('--ol', (1.5/k).toFixed(2) + 'px');
 }
