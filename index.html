@@ -339,6 +339,12 @@
   #flt .fi.on > img, #flt .fi.on .pv { border-color:#b4593f; box-shadow:0 0 0 1px #b4593f; }
   #flt .fi > span { display:block; font-size:9px; color:#8d8d8d; margin-top:3px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   #flt .fi.on > span { color:#e0b9ad; }
+  /* Filtry zwijane jak grupy Właściwości (strzałka + klik w nagłówek), domyślnie zwinięte */
+  #fltBox h2 { display:flex; align-items:center; gap:7px; cursor:pointer; user-select:none; }
+  #fltBox h2 .ar { font-size:8px; color:#8a7a6e; transition:transform .12s ease; }
+  #fltBox.closed h2 .ar { transform:rotate(-90deg); }
+  #fltBox.closed #flt { display:none; }
+  #fltBox.closed { padding-bottom:10px; }
   #list .item.on .ty { color:#eac9bd; }
   #list .empty { color:#6f6f6f; font-size:11px; padding:2px 1px 4px; }
 
@@ -499,8 +505,8 @@
     <div id="list"></div>
   </div>
 
-  <div class="paneBox">
-    <h2>Filtry</h2>
+  <div class="paneBox closed" id="fltBox">
+    <h2><span class="ar">▼</span>Filtry</h2>
     <div id="flt"></div>
   </div>
 
@@ -952,6 +958,7 @@ function fltCss(e) {
   if (e.gs  != null && +e.gs  !== 0)   f.push('grayscale(' + Math.min(100, Math.max(0, +e.gs)) + '%)');
   if (e.sep != null && +e.sep !== 0)   f.push('sepia(' + Math.min(100, Math.max(0, +e.sep)) + '%)');
   if (e.hue != null && +e.hue !== 0)   f.push('hue-rotate(' + (+e.hue) + 'deg)');
+  if (e.blr != null && +e.blr !== 0)   f.push('blur(' + Math.max(0, +e.blr) + 'px)');   // px — filtry-lab's 7th param
   return f.join(' ');
 }
 /* ready-made filters (strip pod Elementami) = presets over the SAME params — the manual
@@ -1929,9 +1936,11 @@ function limOf(k, e) {
     thick: { min: 1, max: 500 },  shb:    { min: 0, max: 500 },
     dash:  { min: 1, max: 1000 }, gap:    { min: 1, max: 1000 },
     olw:   { min: 0, max: 50 },
-    /* filter-preset params — no panel fields today, bounds ready if they get any */
+    /* filter params — br/ct/sat = the img fine-tuning sliders (default 100, 200 = double) */
+    br:    { min: 0, max: 200 },  ct:     { min: 0, max: 200 },
+    sat:   { min: 0, max: 200 },
     gs:    { min: 0, max: 100 },  sep:    { min: 0, max: 100 },
-    hue:   { min: -180, max: 180 }
+    hue:   { min: -180, max: 180 }, blr:  { min: 0, max: 100 }
   }[k] || null;
 }
 /* ---------- Filtry strip — ready-made presets, mini-previews (IG-style) ----------
@@ -1947,7 +1956,9 @@ function limOf(k, e) {
 function buildFilters(e) {
   const box = document.getElementById('flt');
   if (!box) return;
+  document.getElementById('fltBox').classList.toggle('closed', !fltOpen);
   box.innerHTML = '';
+  if (!fltOpen) return;   /* zwinięte = zero pracy — 6 pełnych renderów dokumentu pomijamy */
   const onImg = !!(e && e.type === 'img' && e.src);
   const t = onImg ? e : doc;                 // filter target: the photo or the whole doc
   const cap = document.createElement('div');
@@ -2001,6 +2012,13 @@ function buildFilters(e) {
       }
     }
   }
+}
+/* Filtry — zwijane jak grupy Właściwości (jego prośba 2026-07-15: "filtry mi przeszkadzają").
+   Domyślnie ZWINIĘTE, stan na sesję (jak propOpen); rozwinięcie dopiero renderuje miniatury. */
+let fltOpen = false;
+{
+  const fb = document.getElementById('fltBox');
+  if (fb) fb.querySelector('h2').onclick = () => { fltOpen = !fltOpen; buildFilters(sel()); };
 }
 
 function buildProps() {
