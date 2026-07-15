@@ -325,15 +325,20 @@
   #list .item .t { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   #list .item .ty { flex:0 0 auto; font-size:9px; color:#8d8d8d; text-transform:uppercase; letter-spacing:.08em; }
 
-  /* Filtry — mini-previews of the SELECTED photo, one per preset (IG-style) */
+  /* Filtry — ready-made presets, mini-previews (IG-style). img selected → the photo;
+     otherwise → the WHOLE picture as a scaled live mini-canvas (.pv). Child combinators
+     (> img, > span) matter — plain descendants would also hit the photos/spans INSIDE
+     the mini-canvas elNodes. */
   #flt { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; padding:3px 0; }
+  #flt .scope { grid-column:1 / -1; font-size:10px; color:#8d8d8d; text-transform:uppercase; letter-spacing:.08em; }
   #flt .fi { cursor:pointer; text-align:center; min-width:0; }
-  #flt .fi img { width:100%; aspect-ratio:4/3; object-fit:cover; display:block; background:#242424; border:1px solid #383838; border-radius:6px; box-sizing:border-box; }
-  #flt .fi:hover img { border-color:#4a4a4a; }
-  #flt .fi.on img { border-color:#b4593f; box-shadow:0 0 0 1px #b4593f; }
-  #flt .fi span { display:block; font-size:9px; color:#8d8d8d; margin-top:3px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  #flt .fi.on span { color:#e0b9ad; }
-  #flt .none { grid-column:1 / -1; font-size:11px; color:#777; padding:2px 1px; }
+  #flt .fi > img, #flt .fi .pv { width:100%; aspect-ratio:4/3; display:block; background:#242424; border:1px solid #383838; border-radius:6px; }
+  #flt .fi > img { object-fit:cover; }
+  #flt .fi .pv { position:relative; overflow:hidden; }
+  #flt .fi:hover > img, #flt .fi:hover .pv { border-color:#4a4a4a; }
+  #flt .fi.on > img, #flt .fi.on .pv { border-color:#b4593f; box-shadow:0 0 0 1px #b4593f; }
+  #flt .fi > span { display:block; font-size:9px; color:#8d8d8d; margin-top:3px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  #flt .fi.on > span { color:#e0b9ad; }
   #list .item.on .ty { color:#eac9bd; }
   #list .empty { color:#6f6f6f; font-size:11px; padding:2px 1px 4px; }
 
@@ -409,6 +414,46 @@
   #kolazWrap { position:fixed; inset:0; z-index:800; display:none; background:#242424; }
   #kolazWrap.open { display:block; }
   #kolazWrap iframe { width:100%; height:100%; border:0; display:block; }
+
+  /* ---------------- MOBILE (etap 2): układ na telefon — desktop bez zmian ----------------
+     ≤768px: toolbar = poziomy pasek pod topbarem, #panel = dolny arkusz (bottom sheet)
+     z uchwytem #sheetGrab (wstawiany z JS na końcu pliku, na telefonie ZWINIĘTY na start —
+     widać tylko pasek uchwytu, tap otwiera/zwija przez klasę sheetOpen na body). */
+  #sheetGrab { display:none; }
+  @media (max-width: 768px) {
+    body { height:100dvh; }
+    #topbar { overflow-x:auto; scrollbar-width:none; }
+    #topbar::-webkit-scrollbar { display:none; }
+    #topbar > * { flex:0 0 auto; }
+    #topbar .tbtn > span, #status { display:none; }   /* ikony wystarczą; Pobierz (.primary) trzyma podpis */
+    #topbar #zoom { width:84px; }
+    #main { flex-direction:column; }
+    #toolbar, #toolbar.open {
+      width:100%; flex:0 0 auto; flex-direction:row; gap:8px; padding:5px 8px;
+      border-right:none; border-bottom:1px solid #303030;
+    }
+    #toolbar .tool { width:auto; }
+    #toolbar .tool span, #toolbar .spacer, #toolbar #tbToggle { display:none; }
+    #canvasArea { padding:12px 12px 60px; }           /* dolny zapas = pasek uchwytu nic nie zasłania */
+    #panel {
+      position:fixed; left:0; right:0; bottom:0; width:auto; z-index:400;
+      border-left:none; border-top:1px solid #303030;
+      height:50vh; height:50dvh; padding:0 12px 12px;
+      transform:translateY(calc(100% - 42px));
+      transition:transform .22s ease;
+      box-shadow:0 -14px 44px rgba(0,0,0,.5);
+    }
+    body.sheetOpen #panel { transform:none; }
+    #sheetGrab {
+      display:flex; position:sticky; top:0; z-index:5;
+      width:calc(100% + 24px); margin:0 -12px 10px; height:42px; flex:0 0 auto;
+      background:#171717; border:none; border-bottom:1px solid #262626;
+      align-items:center; justify-content:center; cursor:pointer; touch-action:manipulation;
+    }
+    #sheetGrab i { width:40px; height:4px; border-radius:2px; background:#4a4a4a; }
+    body.sheetOpen #sheetGrab i { background:#6a6a6a; }
+    #list { height:150px; }                            /* w arkuszu 50dvh pełne 248px zjadałoby wszystko */
+  }
 </style>
 
 <div id="topbar">
@@ -1045,6 +1090,10 @@ function draw() {
   stage.style.width  = doc.w + 'px';
   stage.style.height = doc.h + 'px';
   stage.style.background = doc.bg;
+  /* filtr całości: doc-level br/ct/sat/gs/sep/hue on the WHOLE picture (bg + all
+     elements). Inline on #stage, so the export clone carries it for free. `|| ''`
+     clears it on undo/Nowy/Reset. Sel chrome gets tinted too — accepted. */
+  stage.style.filter = fltCss(doc) || '';
   stage.innerHTML = '';
 
   for (const e of doc.els) {
@@ -1348,6 +1397,8 @@ function thumbNode(d, boxW, boxH) {
   outer.style.cssText = 'flex:0 0 auto;overflow:hidden;box-shadow:0 0 0 1px #000;width:' + (d.w * k) + 'px;height:' + (d.h * k) + 'px;';
   const st = document.createElement('div');
   st.style.cssText = 'position:relative;overflow:hidden;transform-origin:top left;width:' + d.w + 'px;height:' + d.h + 'px;background:' + d.bg + ';transform:scale(' + k + ');';
+  const flt = fltCss(d);                     // doc-level filtr całości shows in previews too
+  if (flt) st.style.filter = flt;
   for (const e of d.els) st.appendChild(elNode(e));
   outer.appendChild(st);
   return outer;
@@ -1883,42 +1934,73 @@ function limOf(k, e) {
     hue:   { min: -180, max: 180 }
   }[k] || null;
 }
-/* ---------- Filtry strip — mini-previews of the SELECTED photo (IG-style) ----------
+/* ---------- Filtry strip — ready-made presets, mini-previews (IG-style) ----------
    Own paneBox under Elementy; rebuilt by every buildProps (selection change, undo,
-   structural param change). Thumbs are built via DOM + .src property — a data-URI
-   src interpolated into innerHTML would copy a multi-MB string per thumb.
-   Preview = the preset on the ORIGINAL photo (not stacked on current sliders);
-   a click REPLACES the six filter params (one snap = one Ctrl+Z), sliders stay
-   available as fine-tuning on top. */
+   structural param change). img selected → presets preview/apply on THAT photo;
+   anything else → on the WHOLE picture (doc-level params → filter on #stage in
+   draw(); the export clones the stage inline styles, so it ships automatically).
+   Photo thumbs = DOM + .src property — a data-URI src interpolated into innerHTML
+   would copy a multi-MB string per thumb. Whole-picture thumbs = scaled live
+   mini-canvas (same elNode as the gallery previews), scale measured AFTER append.
+   Preview = the preset alone (not stacked on current values); a click REPLACES the
+   six filter params (one snap = one Ctrl+Z); the img sliders stay as fine-tuning. */
 function buildFilters(e) {
   const box = document.getElementById('flt');
   if (!box) return;
   box.innerHTML = '';
-  if (!e || e.type !== 'img' || !e.src) {
-    box.innerHTML = '<span class="none">Zaznacz zdjęcie, aby użyć filtrów.</span>';
-    return;
-  }
-  const cur = k => +(e[k] ?? ((k === 'br' || k === 'ct' || k === 'sat') ? 100 : 0));
+  const onImg = !!(e && e.type === 'img' && e.src);
+  const t = onImg ? e : doc;                 // filter target: the photo or the whole doc
+  const cap = document.createElement('div');
+  cap.className = 'scope';
+  cap.textContent = onImg ? 'Zdjęcie' : 'Cała grafika';
+  box.appendChild(cap);
+  const cur = k => +(t[k] ?? ((k === 'br' || k === 'ct' || k === 'sat') ? 100 : 0));
+  const pvs = [];
   FLT_PRESETS.forEach(P => {
     const on = Object.keys(P[1]).every(k => cur(k) === P[1][k]);
     const d = document.createElement('div');
     d.className = 'fi' + (on ? ' on' : '');
     d.title = P[0];
-    const im = document.createElement('img');
-    im.src = e.src;
-    im.alt = '';
     const f = fltCss(P[1]);
-    if (f) im.style.filter = f;
+    if (onImg) {
+      const im = document.createElement('img');
+      im.src = e.src;
+      im.alt = '';
+      if (f) im.style.filter = f;
+      d.appendChild(im);
+    } else {
+      const pv = document.createElement('div');
+      pv.className = 'pv';
+      pvs.push([pv, f]);
+      d.appendChild(pv);
+    }
     const s = document.createElement('span');
     s.textContent = P[0];
-    d.append(im, s);
+    d.appendChild(s);
     d.onclick = () => {
       snap();
-      Object.assign(e, P[1]);
-      draw(); buildProps();   // re-runs buildFilters → highlight + sliders refresh
+      Object.assign(t, P[1]);
+      draw(); buildProps();   // re-runs buildFilters → highlight (+ sliders) refresh
     };
     box.appendChild(d);
   });
+  /* whole-picture thumbs: cover-crop the doc into each .pv, centred — real box size
+     is only known after append (grid column is fluid) */
+  if (pvs.length && doc.w > 0 && doc.h > 0) {
+    const bw = pvs[0][0].clientWidth, bh = pvs[0][0].clientHeight;
+    if (bw > 0 && bh > 0) {
+      const k = Math.max(bw / doc.w, bh / doc.h);
+      for (const [pv, f] of pvs) {
+        const st = document.createElement('div');
+        st.style.cssText = 'position:absolute;left:50%;top:50%;transform-origin:top left;' +
+          'width:' + doc.w + 'px;height:' + doc.h + 'px;background:' + doc.bg +
+          ';transform:translate(' + (-doc.w * k / 2) + 'px,' + (-doc.h * k / 2) + 'px) scale(' + k + ')' +
+          (f ? ';filter:' + f : '');
+        for (const el of doc.els) st.appendChild(elNode(el));
+        pv.appendChild(st);
+      }
+    }
+  }
 }
 
 function buildProps() {
@@ -2546,6 +2628,30 @@ if (RENDER) {
     if (m.type === 'kolaz-close') closeKolaz();
     else if (m.type === 'kolaz-collage' && m.src) { closeKolaz(); insertCollage(m); }
   });
+}
+
+/* ---------- MOBILE (etap 2): uchwyt dolnego arkusza panelu ----------
+   Telefon (CSS @media ≤768px wyżej): #panel = bottom sheet, domyślnie zwinięty;
+   #sheetGrab = pasek-uchwyt na początku panelu, tap = toggle klasy sheetOpen na body.
+   blur() po kliku — inaczej fokus na przycisku W PANELU trzymałby ukryty sel chrome
+   (reguła body:has(#panel :focus)). Desktop: uchwyt ma display:none, zero zmian. */
+if (!RENDER) {
+  const grab = document.createElement('button');
+  grab.id = 'sheetGrab';
+  grab.title = 'Pokaż / ukryj panel';
+  grab.innerHTML = '<i></i>';
+  grab.onclick = () => { document.body.classList.toggle('sheetOpen'); grab.blur(); };
+  const pn = document.getElementById('panel');
+  pn.insertBefore(grab, pn.firstChild);
+  /* telefon: startowy zoom = dopasuj szerokość grafiki do ekranu (raz, po starcie) */
+  if (matchMedia('(pointer: coarse)').matches && innerWidth <= 768) {
+    window.addEventListener('load', () => setTimeout(() => {
+      try {
+        const v = Math.max(15, Math.min(100, Math.floor((innerWidth - 24) / doc.w * 100)));
+        document.getElementById('zoom').value = v; applyZoom();
+      } catch (e) {}
+    }, 200));
+  }
 }
 
 boot().then(checkInbox);

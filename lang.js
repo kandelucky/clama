@@ -53,6 +53,7 @@
     "Wyśrodkuj w pionie": "Center vertically",
     "Format pliku": "File format",
     "Pobierz": "Download",
+    "Pokaż / ukryj panel": "Show / hide panel",
     "Pomoc": "Help",
 
     /* --- left toolbar --- */
@@ -187,7 +188,7 @@
     "Kontrast %": "Contrast %",
     "Nasycenie %": "Saturation %",
 
-    /* --- Filtry strip (ready-made filter presets) --- */
+    /* --- Filtry strip (ready-made filter presets; scope = photo / whole picture) --- */
     "Filtry": "Filters",
     "Oryginał": "Original",
     "Czarno-biały": "Black & white",
@@ -195,7 +196,7 @@
     "Ciepły": "Warm",
     "Chłodny": "Cool",
     "Wyblakły": "Faded",
-    "Zaznacz zdjęcie, aby użyć filtrów.": "Select a photo to use filters.",
+    "Cała grafika": "Whole graphic",
     "Ulubione — Sallora": "Favorites — Sallora",
     "Pozostałe": "Others",
     "Własne": "Custom",
