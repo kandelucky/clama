@@ -1375,6 +1375,32 @@ function nearestElAt(cx, cy, slop = 18) {
   }
   return best;
 }
+/* dbl-tap na PUSTYM płótnie (telefon, jego reguła 2026-07-15): 1. raz = zoom ×2 z kotwicą
+   pod palcem; 2. raz = powrót do stanu sprzed; powiększone RĘCZNIE (pinch/suwak, bez
+   zapisanego stanu) = powrót do CAŁEGO obrazu (fit) */
+let dtapZoom = null;                    // zoom sprzed dbl-tapowego powiększenia
+let lastEmptyTap = { t:0, x:0, y:0 };   // ostatni czysty tap na pustym — do wykrycia dbl
+function fitZoomK() {
+  const k = Math.min((canvasAreaEl.clientWidth - 24) / doc.w,
+                     (canvasAreaEl.clientHeight - 24) / doc.h) * 100;
+  return Math.max(15, Math.min(100, Math.round(k)));
+}
+function dblTapZoom(cx, cy) {
+  const zr = document.getElementById('zoom');
+  const cur = +zr.value, fit = fitZoomK();
+  let target;
+  if (dtapZoom !== null) { target = dtapZoom; dtapZoom = null; }   // powrót do ostatniego stanu
+  else if (cur >= fit * 1.15) target = fit;                        // powiększone ręcznie → cały obraz
+  else { dtapZoom = cur; target = Math.min(200, cur * 2); }        // powiększenie ×2
+  const k = zoom(), sr = scaler.getBoundingClientRect();
+  const pcx = (cx - sr.left) / k, pcy = (cy - sr.top) / k;         // punkt płótna pod palcem
+  zr.value = Math.round(target);
+  applyZoom();
+  const k2 = zoom();
+  const ar = canvasAreaEl.getBoundingClientRect(), sr2 = scaler.getBoundingClientRect();
+  canvasAreaEl.scrollLeft = sr2.left - ar.left + canvasAreaEl.scrollLeft + pcx * k2 - (cx - ar.left);
+  canvasAreaEl.scrollTop  = sr2.top  - ar.top  + canvasAreaEl.scrollTop  + pcy * k2 - (cy - ar.top);
+}
 /* dwa palce na płótnie = nigdy natywny scroll/zoom przeglądarki; jeden palec tuż obok
    małego elementu = my go ciągniemy, przeglądarka nie może panować (pointerdown
    odpala się PRZED touchstart, więc drag już trwa, gdy tu zapada decyzja) */
@@ -1466,11 +1492,18 @@ const touchEnd = ev => {
   }
   if (pendingDesel && ev.pointerId === pendingDesel.id) {
     const pd = pendingDesel; pendingDesel = null;
-    /* tap pustego miejsca odznacza dopiero na UP — drugi palec mógł zmienić dotyk
-       w gest na zaznaczonym elemencie (start pinch/vpinch czyści pendingDesel) */
-    if (ev.type === 'pointerup' && !pinch && !vpinch && selId
+    /* tap pustego miejsca rozstrzyga się na UP — drugi palec mógł zmienić dotyk
+       w gest (start pinch/vpinch czyści pendingDesel) */
+    if (ev.type === 'pointerup' && !pinch && !vpinch
         && Math.hypot(ev.clientX - pd.x, ev.clientY - pd.y) < 10) {
-      selId = null; draw(); buildList(); buildProps();
+      if (selId) { selId = null; draw(); buildList(); buildProps(); }
+      if (ev.timeStamp - lastEmptyTap.t < 400
+          && Math.abs(ev.clientX - lastEmptyTap.x) < 30 && Math.abs(ev.clientY - lastEmptyTap.y) < 30) {
+        dblTapZoom(ev.clientX, ev.clientY);       // dbl-tap na pustym = zoom widoku (×2 / powrót)
+        lastEmptyTap = { t:0, x:0, y:0 };
+      } else {
+        lastEmptyTap = { t: ev.timeStamp, x: ev.clientX, y: ev.clientY };
+      }
     }
   }
   if (pinch && tpts.size < 2) pinch = null;
@@ -1846,8 +1879,9 @@ document.getElementById('canvasArea').addEventListener('pointerdown', ev => {
       lastDown = { id: null, t: 0, x: 0, y: 0 };
       return;
     }
-    if (selId) pendingDesel = { id: ev.pointerId, x: ev.clientX, y: ev.clientY };
-    return;           /* odznaczenie zapada na pointerup (touchEnd) — 2. palec może zrobić z tego gest */
+    pendingDesel = { id: ev.pointerId, x: ev.clientX, y: ev.clientY };
+    return;           /* pusty tap rozstrzyga się na pointerup (touchEnd): odznaczenie i/lub dbl-tap zoom;
+                         2. palec może zrobić z tego gest */
   }
   if (selId) { selId = null; draw(); buildList(); buildProps(); }
 });
