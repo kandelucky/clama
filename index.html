@@ -476,8 +476,15 @@
       background:#171717; border:none; border-bottom:1px solid #262626;
       align-items:center; justify-content:center; cursor:pointer; touch-action:manipulation;
     }
-    #sheetGrab i { width:40px; height:4px; border-radius:2px; background:#4a4a4a; }
-    body.sheetOpen #sheetGrab i { background:#6a6a6a; }
+    /* uchwyt = strzałka /\ zamiast paska (2026-07-15, jego ask — pasek sugerował DRAG,
+       a działa tap): zwinięty = /\ (otwórz), otwarty = \/ ; obraca się z animacją */
+    #sheetGrab i {
+      width:13px; height:13px; flex:0 0 auto; background:none;
+      border-left:3px solid #8a8a8a; border-top:3px solid #8a8a8a; border-radius:2px;
+      transform:translateY(3px) rotate(45deg);
+      transition:transform .22s ease, border-color .22s ease;
+    }
+    body.sheetOpen #sheetGrab i { transform:translateY(-3px) rotate(225deg); border-color:#a8a8a8; }
     #list { height:150px; }                            /* w arkuszu 50dvh pełne 248px zjadałoby wszystko */
   }
   /* MOBILE (etap 3): na dotyku obrót = gest dwoma palcami (skręt), skala = szczypanie —
