@@ -55,6 +55,9 @@
     "Pobierz": "Download",
     "Pokaż / ukryj panel": "Show / hide panel",
     "Pomoc": "Help",
+    /* mobile menu ☰ (topbar) */
+    "Pobierz PNG": "Download PNG",
+    "Pobierz JPG": "Download JPG",
 
     /* --- left toolbar --- */
     "Tekst": "Text",

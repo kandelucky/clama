@@ -421,6 +421,20 @@
   #kolazWrap.open { display:block; }
   #kolazWrap iframe { width:100%; height:100%; border:0; display:block; }
 
+  /* ---------------- MOBILE: menu ☰ w topbarze ----------------
+     na telefonie topbar trzyma tylko niezbędne ikony; Pomoc / Język / Pobierz /
+     Import / Kolaż idą do menu ☰ (#mmenu, wygląd jak #ctx). Desktop: ☰ ukryty. */
+  #topbar #mmBtn { display:none; }
+  #mmenu {
+    position:fixed; z-index:600; display:none; min-width:186px;
+    background:#232323; border:1px solid #3d3d3d; border-radius:7px; padding:4px;
+    box-shadow:0 10px 28px rgba(0,0,0,.5);
+  }
+  #mmenu .mi { display:flex; align-items:center; gap:10px; padding:10px 11px; border-radius:5px; cursor:pointer; color:#ddd; font-size:12px; }
+  #mmenu .mi:hover { background:#333; }
+  #mmenu .mi img { width:15px; height:15px; flex:0 0 15px; opacity:.9; display:block; }
+  #mmenu .msep { height:1px; background:#3a3a3a; margin:4px 6px; }
+
   /* ---------------- MOBILE (etap 2): układ na telefon — desktop bez zmian ----------------
      ≤768px: toolbar = poziomy pasek pod topbarem, #panel = dolny arkusz (bottom sheet)
      z uchwytem #sheetGrab (wstawiany z JS na końcu pliku, na telefonie ZWINIĘTY na start —
@@ -431,8 +445,14 @@
     #topbar { overflow-x:auto; scrollbar-width:none; }
     #topbar::-webkit-scrollbar { display:none; }
     #topbar > * { flex:0 0 auto; }
-    #topbar .tbtn > span, #status { display:none; }   /* ikony wystarczą; Pobierz (.primary) trzyma podpis */
-    #topbar #zoom { width:84px; }
+    #topbar .tbtn > span, #status { display:none; }   /* ikony wystarczą */
+    /* topbar = tylko niezbędne ikony; zoom zbędny (jest szczypanie dwoma palcami),
+       Pomoc / Język / format+Pobierz / Kolaż przenoszą się do menu ☰ */
+    #brand .bfull { display:none; }                   /* zostaje samo „C" */
+    #topbar #zoom, #topbar #zv,
+    #topbar #helpBtn, #topbar #langBtn, #topbar #fmt, #topbar #png,
+    #topbar #kolazBtn, #topbar #kolazBtn + .sep { display:none; }
+    #topbar #mmBtn { display:flex; }
     #main { flex-direction:column; }
     #toolbar, #toolbar.open {
       width:100%; flex:0 0 auto; flex-direction:row; gap:8px; padding:5px 8px;
@@ -472,7 +492,7 @@
 </style>
 
 <div id="topbar">
-  <span id="brand">CLA<b>MA</b></span>
+  <span id="brand">C<span class="bfull">LA<b>MA</b></span></span>
   <div class="sep"></div>
   <button class="tbtn" id="kolazBtn" title="Kolaż — układanie zdjęć w siatce (wraca się przyciskiem „Edytor")"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAACXBIWXMAAAsTAAALEwEAmpwYAAAAXUlEQVR4nO2UQQqAMAwE+zzr/z9g6z9GLAo5aA7bSwmZa6csCWRLCQOwAyffdKAqrg24Hzya4tqAwc90A8XNgLVW1PE5FNcGVOdjAzbFDQRZFQ9ZFVOXnFXxEqwqLmSvbcJKnMu0AAAAAElFTkSuQmCC"><span>Kolaż</span></button>
   <div class="sep"></div>
@@ -494,6 +514,19 @@
     <option value="jpg">JPG</option>
   </select>
   <button class="primary" id="png"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAACXBIWXMAAAsTAAALEwEAmpwYAAAArElEQVR4nO2UQQ6CMBAAe/IHEn2L8Xuo7/JGPOGBF8AHfMCY1S1pQjcIhUTQSXpamClNg3M/BXCVNWfgxT9gguLmgkUFeF/JG5BZAZnpM8OvLlCo7+4jYUDlMhOKMYEtUKqgAvY+EJntBgeMiCddHkSy4ChC2qNL/s/QjZhy0+Pf7PmShy5z56anL/Ap6w40OjskyI/qqGPDM9ORxwIb4CL1BHENnMQ19hS+jyc+9QyKzTFxQwAAAABJRU5ErkJggg=="><span>Pobierz</span></button>
+  <button class="tbtn" id="mmBtn" title="Menu"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAACXBIWXMAAAsTAAALEwEAmpwYAAAALUlEQVR4nGNgGAWDCvz////wf8rB4YGzYBSMAPB/NJmOgsEP/o8m01HAQAYAAEk4q5AxXk9MAAAAAElFTkSuQmCC"></button>
+</div>
+
+<!-- MOBILE: menu ☰ — Pomoc / Język / eksport / import / Kolaż (ikony dociągane przy otwarciu) -->
+<div id="mmenu">
+  <div class="mi" data-mm="help"><img alt="">Pomoc</div>
+  <div class="mi" data-mm="lang"><img alt="">Język</div>
+  <div class="msep"></div>
+  <div class="mi" data-mm="png"><img alt="">Pobierz PNG</div>
+  <div class="mi" data-mm="jpg"><img alt="">Pobierz JPG</div>
+  <div class="mi" data-mm="imp"><img alt="">Import .json</div>
+  <div class="msep"></div>
+  <div class="mi" data-mm="kolaz"><img alt="">Kolaż</div>
 </div>
 
 <div id="main">
@@ -2854,6 +2887,59 @@ if (RENDER) {
     const m = ev.data || {};
     if (m.type === 'kolaz-close') closeKolaz();
     else if (m.type === 'kolaz-collage' && m.src) { closeKolaz(); insertCollage(m); }
+  });
+}
+
+/* ---------- MOBILE: menu ☰ w topbarze ----------
+   Telefon (≤768px): topbar trzyma tylko niezbędne ikony, reszta idzie tutaj —
+   Pomoc / Język / Pobierz PNG-JPG / Import .json / Kolaż. Ikony wierszy dociągane
+   przy KAŻDYM otwarciu z istniejących przycisków (#langBtn wstawia lang.js po starcie).
+   Wpisy klikają ukryte przyciski topbaru — jedna ścieżka, zero duplikacji logiki. */
+if (RENDER) {
+  const mm = document.getElementById('mmenu');
+  if (mm) mm.remove();
+} else {
+  const mm = document.getElementById('mmenu');
+  const mmBtn = document.getElementById('mmBtn');
+  const MM_ICO = { help:'#helpBtn img', lang:'#langBtn img', png:'#png img', jpg:'#png img', imp:'#tplImport img', kolaz:'#kolazBtn img' };
+  const closeMm = () => { mm.style.display = 'none'; };
+  const openMm = () => {
+    mm.querySelectorAll('.mi').forEach(it => {
+      const s = document.querySelector(MM_ICO[it.dataset.mm]);
+      if (s) it.querySelector('img').src = s.src;
+    });
+    mm.style.display = 'block';
+    const r = mmBtn.getBoundingClientRect();
+    mm.style.left = Math.max(8, Math.min(r.right - mm.offsetWidth, innerWidth - mm.offsetWidth - 8)) + 'px';
+    mm.style.top = (r.bottom + 6) + 'px';
+  };
+  mmBtn.onclick = () => { mm.style.display === 'block' ? closeMm() : openMm(); };
+  document.addEventListener('mousedown', ev => {
+    if (mm.style.display === 'block' && !mm.contains(ev.target) && !mmBtn.contains(ev.target)) closeMm();
+  });
+  /* Esc zamyka TYLKO menu (capture + stop — jak #cfm) */
+  document.addEventListener('keydown', ev => {
+    if (ev.key === 'Escape' && mm.style.display === 'block') { closeMm(); ev.stopPropagation(); }
+  }, true);
+  addEventListener('scroll', closeMm, true);
+  addEventListener('resize', closeMm);
+  mm.querySelectorAll('.mi').forEach(it => it.onclick = () => {
+    const k = it.dataset.mm; closeMm();
+    if (k === 'help') openHelp();
+    else if (k === 'lang') {
+      const lb = document.getElementById('langBtn'); if (!lb) return;
+      lb.click();
+      /* #lgpop pozycjonuje się od ukrytego #langBtn (rect 0,0) — przestaw pod ☰ */
+      const lp = document.getElementById('lgpop');
+      if (lp && lp.style.display === 'block') {
+        const r = mmBtn.getBoundingClientRect();
+        lp.style.left = Math.max(8, Math.min(r.right - lp.offsetWidth, innerWidth - lp.offsetWidth - 8)) + 'px';
+        lp.style.top = (r.bottom + 6) + 'px';
+      }
+    }
+    else if (k === 'png' || k === 'jpg') { document.getElementById('fmt').value = k; document.getElementById('png').click(); }
+    else if (k === 'imp') document.getElementById('jsonPick').click();
+    else if (k === 'kolaz') document.getElementById('kolazBtn').click();
   });
 }
 
